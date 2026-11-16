@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { width: 360px; background: var(--bg); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  header .brand { display: flex; align-items: center; gap: 8px; }
+  header img { width: 20px; height: 20px; }
+  main { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .rule { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+  .rule:hover { border-color: var(--accent); }
+  .rule .info { flex: 1; min-width: 0; }
+  .rule .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rule .sub { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rule.match { border-left: 3px solid var(--accent); background: var(--accent-soft); }
+  .hits { display: inline-block; margin-left: 6px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9px; vertical-align: 1px; }
+  .page-summary { font-size: 12px; color: var(--muted); padding: 6px 10px; border-radius: var(--radius); background: var(--panel2); }
+  .page-summary.active { color: var(--accent-dark); background: var(--accent-soft); font-weight: 600; }
+  .page-summary.off { color: var(--muted); font-style: italic; }
+  .empty { text-align: center; color: var(--muted); padding: 18px 0; }
+  footer { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+  footer button { flex: 1; }
+  .list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .global-off .list { opacity: .45; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="icons/mint32.png" alt=""><h2>dmena_request</h2></div>
+  <label class="switch" title="Activar / desactivar todo"><input type="checkbox" id="globalToggle"><span></span></label>
+</header>
+<main>
+  <div id="permBanner" class="banner hidden">
+    <span>Falta permiso para modificar peticiones.</span>
+    <button id="grantBtn" class="primary">Conceder</button>
+  </div>
+  <div id="pageSummary" class="page-summary"></div>
+  <div id="list" class="list"></div>
+  <div id="status" class="status"></div>
+</main>
+<footer>
+  <button id="newHereBtn">+ Regla para este sitio</button>
+  <button id="openEditorBtn" class="primary">Abrir editor</button>
+</footer>
+<script src="rules.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

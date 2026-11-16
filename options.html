@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>dmena_request — Editor de reglas</title>
+<link rel="icon" href="icons/mint32.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="aside-head">
+      <div class="brand"><img src="icons/mint48.png" alt=""><h1>dmena_request</h1></div>
+      <label class="switch" title="Activar / desactivar todo"><input type="checkbox" id="globalToggle"><span></span></label>
+    </div>
+    <button id="addRuleBtn" class="primary full">+ Nueva regla</button>
+    <div id="ruleList" class="rule-list"></div>
+    <div class="aside-foot">
+      <button id="exportBtn">Exportar</button>
+      <button id="importBtn">Importar</button>
+      <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+    </div>
+  </aside>
+
+  <main>
+    <div id="permBanner" class="banner hidden">
+      <span>La extensión no tiene permiso para acceder a los sitios, así que las reglas no se aplicarán (habitual en Firefox).</span>
+      <button id="grantBtn" class="primary">Conceder permiso</button>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <h2>Sin regla seleccionada</h2>
+      <p class="muted">Crea una regla para añadir cabeceras o parámetros de URL.</p>
+    </div>
+
+    <form id="editor" class="hidden" autocomplete="off">
+      <div class="editor-head">
+        <input type="text" id="ruleName" class="title-input" placeholder="Nombre de la regla">
+        <label class="switch" title="Regla activa"><input type="checkbox" id="ruleEnabled"><span></span></label>
+        <button type="button" id="dupRuleBtn" title="Duplicar">Duplicar</button>
+        <button type="button" id="delRuleBtn" class="danger" title="Eliminar">Eliminar</button>
+      </div>
+      <div id="ruleErrors" class="errors hidden"></div>
+
+      <section class="card">
+        <h3>1. ¿A qué peticiones se aplica?</h3>
+        <div class="row">
+          <select id="matchType" class="w-auto">
+            <option value="all">Todas las URLs</option>
+            <option value="domain">Dominio(s)</option>
+            <option value="url">URL contiene / comodín</option>
+            <option value="regex">Expresión regular</option>
+          </select>
+          <input type="text" id="matchValue" class="mono" placeholder="">
+        </div>
+        <p id="matchHelp" class="help"></p>
+        <details class="types">
+          <summary>Tipos de recurso: <span id="typesSummary">todos</span></summary>
+          <div id="typesBox" class="types-grid"></div>
+          <p class="help">Si no marcas ninguno se aplica a todos (incluida la página principal).</p>
+        </details>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h3>2. Cabeceras de la petición <span class="muted small">(lo que se envía al servidor)</span></h3>
+          <div class="btns">
+            <select id="reqPreset" class="w-auto preset">
+              <option value="">Plantilla…</option>
+              <option value="Authorization|Bearer ">Authorization: Bearer</option>
+              <option value="Cookie|">Cookie</option>
+              <option value="User-Agent|">User-Agent</option>
+              <option value="Origin|">Origin</option>
+              <option value="Referer|">Referer</option>
+              <option value="X-Forwarded-For|127.0.0.1">X-Forwarded-For</option>
+              <option value="Accept-Language|es-ES,es;q=0.9">Accept-Language</option>
+              <option value="Cache-Control|no-cache">Cache-Control: no-cache</option>
+            </select>
+            <button type="button" id="addReqHeader">+ Cabecera</button>
+          </div>
+        </div>
+        <div id="reqHeaders" class="kv-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h3>3. Cabeceras de la respuesta <span class="muted small">(lo que recibe el navegador)</span></h3>
+          <div class="btns">
+            <select id="resPreset" class="w-auto preset">
+              <option value="">Plantilla…</option>
+              <option value="__cors">CORS abierto (4 cabeceras)</option>
+              <option value="Access-Control-Allow-Origin|*">Access-Control-Allow-Origin</option>
+              <option value="__removecsp">Quitar CSP y X-Frame-Options</option>
+              <option value="Cache-Control|no-store">Cache-Control: no-store</option>
+              <option value="Set-Cookie|">Set-Cookie</option>
+            </select>
+            <button type="button" id="addResHeader">+ Cabecera</button>
+          </div>
+        </div>
+        <div id="resHeaders" class="kv-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h3>4. Parámetros de la URL</h3>
+          <div class="btns">
+            <button type="button" id="addParam">+ Añadir / reemplazar</button>
+            <button type="button" id="addRemoveParam">+ Quitar</button>
+          </div>
+        </div>
+        <div id="params" class="kv-list"></div>
+        <p class="help">Añadir parámetros hace una redirección interna a la misma URL con los parámetros nuevos (en la página principal verás la URL cambiada).</p>
+      </section>
+
+      <details class="card preview">
+        <summary>Ver reglas generadas (declarativeNetRequest)</summary>
+        <pre id="dnrPreview"></pre>
+      </details>
+    </form>
+
+    <div class="statusbar"><span id="status" class="status"></span></div>
+  </main>
+</div>
+
+<datalist id="reqHeaderNames">
+  <option value="Authorization"><option value="Cookie"><option value="User-Agent"><option value="Origin">
+  <option value="Referer"><option value="Accept"><option value="Accept-Language"><option value="Content-Type">
+  <option value="Cache-Control"><option value="X-Forwarded-For"><option value="X-Requested-With"><option value="X-Api-Key">
+</datalist>
+<datalist id="resHeaderNames">
+  <option value="Access-Control-Allow-Origin"><option value="Access-Control-Allow-Methods">
+  <option value="Access-Control-Allow-Headers"><option value="Access-Control-Allow-Credentials">
+  <option value="Access-Control-Expose-Headers"><option value="Content-Security-Policy"><option value="X-Frame-Options">
+  <option value="Cache-Control"><option value="Set-Cookie"><option value="Content-Type"><option value="Strict-Transport-Security">
+</datalist>
+
+<script src="rules.js"></script>
+<script src="options.js"></script>
+</body>
+</html>
