@@ -90,6 +90,17 @@ pre { background: var(--panel2); border: 1px solid var(--border); border-radius:
 .lg.redirect::before { background: var(--k-redirect); }
 .lg.params::before { background: var(--k-params); }
 .card.kind-headers { border-left: 4px solid var(--k-headers); }
+.related-card { border-left: 4px solid var(--accent); padding: 10px 16px; }
+.relate-select { max-width: 260px; }
+.related-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.related-list:empty::before { content: "Ninguna. Relaciona reglas alternativas (por ejemplo, varias redirecciones de la misma URL) para cambiar entre ellas con un clic."; color: var(--muted); font-size: 13.5px; }
+.rel-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; border: 1px solid var(--border); border-left: 4px solid var(--kind, var(--k-none)); border-radius: 18px; background: var(--panel); font-size: 13.5px; }
+.rel-chip .rel-name { cursor: pointer; font-weight: 600; }
+.rel-chip .rel-name:hover { text-decoration: underline; }
+.rel-chip .rel-state { font-size: 11.5px; color: var(--muted); }
+.rel-chip.on .rel-state { color: var(--accent-dark); font-weight: 700; }
+.rel-chip button { padding: 2px 8px; font-size: 12px; border-radius: 12px; }
+.chip.rel { background: var(--accent-soft); color: var(--accent-dark); }
 .card.kind-redirect { border-left: 4px solid var(--k-redirect); }
 .card.kind-params { border-left: 4px solid var(--k-params); }
 .card.dimmed > :not(.card-head):not(.warn-note) { opacity: .4; pointer-events: none; }

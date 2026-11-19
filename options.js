@@ -45,7 +45,8 @@ async function saveNow() {
   saveTimer = null;
   const res = await RT.saveAndApply(state);
   lastFailed = res.failed || [];
-  setStatus(res);
+  setStatus(res.ok && pendingMsg ? { ...res, msg: pendingMsg } : res);
+  pendingMsg = null;
   renderList();
   await renderErrors();
   renderPreview();
@@ -66,15 +67,11 @@ function renderList() {
     const cb = el("input", { type: "checkbox", checked: rule.enabled });
     sw.append(cb, el("span"));
     sw.addEventListener("click", e => e.stopPropagation());
-    cb.addEventListener("change", () => {
-      rule.enabled = cb.checked;
-      if (rule.id === selectedId) $("ruleEnabled").checked = cb.checked;
-      scheduleSave();
-    });
+    cb.addEventListener("change", () => toggleRule(rule, cb.checked));
     const info = el("div", { className: "ri-info" },
       el("div", { className: "ri-name", textContent: rule.name || "(sin nombre)" }),
       el("div", { className: "ri-sub", textContent: `${RT.describeMatch(rule)} — ${RT.summarize(rule)}` }),
-      kindChips(kinds)
+      kindChips(kinds, RT.relatedOf(state, rule))
     );
     const grip = el("div", { className: "ri-grip", textContent: "⋮⋮", title: "Arrastra para cambiar el orden (arriba = más prioridad)" });
     item.append(grip, sw, info);
@@ -158,6 +155,7 @@ function restoreFromTrash(i) {
   const [t] = state.trash.splice(i, 1);
   const at = Math.min(Math.max(t.index ?? state.rules.length, 0), state.rules.length);
   state.rules.splice(at, 0, t.rule);
+  if (t.rule.enabled && RT.relatedOf(state, t.rule).some(r => r.enabled)) t.rule.enabled = false;
   select(t.rule.id);
   scheduleSave();
 }
@@ -206,10 +204,55 @@ function renderTrash() {
 }
 
 const KIND_LABEL = { headers: "Cabeceras", redirect: "Redirección", params: "Parámetros" };
-function kindChips(kinds) {
+function kindChips(kinds, related = []) {
   const box = el("div", { className: "ri-chips" });
   kinds.forEach(k => box.append(el("span", { className: "chip " + k, textContent: KIND_LABEL[k] })));
+  if (related.length) box.append(el("span", { className: "chip rel", textContent: "⇄ " + related.length,
+    title: "Relacionada con: " + related.map(r => r.name).join(", ") }));
   return box;
+}
+
+// ---------------- Relacionadas ----------------
+let pendingMsg = null;
+
+function toggleRule(rule, on) {
+  const off = RT.setEnabled(state, rule, on);
+  if (off.length) pendingMsg = `✓ Activada «${rule.name}» · desactivada${off.length > 1 ? "s" : ""}: ${off.map(r => "«" + r.name + "»").join(", ")}`;
+  renderList();
+  if (current()) { $("ruleEnabled").checked = current().enabled; renderRelated(); }
+  scheduleSave();
+}
+
+function renderRelated() {
+  const rule = current();
+  const inTrash = !!viewTrashId;
+  const list = $("relatedList");
+  list.innerHTML = "";
+  for (const r of RT.relatedOf(state, rule)) {
+    const kinds = RT.ruleKinds(r);
+    const name = el("span", { className: "rel-name", textContent: r.name || "(sin nombre)", title: "Abrir esta regla" });
+    name.addEventListener("click", () => select(r.id));
+    const chip = el("span", { className: "rel-chip kind-bar-" + (kinds[0] || "none") + (r.enabled ? " on" : "") },
+      name, el("span", { className: "rel-state", textContent: r.enabled ? "● activa" : "○ inactiva" }));
+    if (!inTrash) {
+      if (!r.enabled) {
+        const use = el("button", { type: "button", textContent: "Activar", title: "Activar esta y desactivar las demás relacionadas" });
+        use.addEventListener("click", () => toggleRule(r, true));
+        chip.append(use);
+      }
+      const x = el("button", { type: "button", className: "danger", textContent: "✕", title: "Quitar la relación" });
+      x.addEventListener("click", () => { RT.unrelate(state, r); renderList(); renderRelated(); scheduleSave(); });
+      chip.append(x);
+    }
+    list.append(chip);
+  }
+  // Desplegable con las reglas que se pueden relacionar
+  const sel = $("relateSelect");
+  sel.innerHTML = "";
+  sel.append(el("option", { value: "", textContent: "+ Relacionar con…" }));
+  const candidates = state.rules.filter(r => r.id !== rule.id && !(rule.relGroup && r.relGroup === rule.relGroup));
+  for (const r of candidates) sel.append(el("option", { value: r.id, textContent: r.name || "(sin nombre)" }));
+  sel.disabled = inTrash || !candidates.length;
 }
 
 
@@ -254,6 +297,7 @@ function renderEditor() {
   renderHeaderList("resHeaders", rule.responseHeaders, ["set", "append", "remove"], "resHeaderNames");
   renderParams();
   renderRedirect();
+  renderRelated();
   renderErrors();
   renderPreview();
 }
@@ -458,7 +502,18 @@ async function init() {
     $("matchValue").focus();
   });
   $("ruleName").addEventListener("input", e => { current().name = e.target.value; autoNamed.delete(current().id); scheduleSave(); });
-  $("ruleEnabled").addEventListener("change", e => { current().enabled = e.target.checked; scheduleSave(); });
+  $("ruleEnabled").addEventListener("change", e => toggleRule(current(), e.target.checked));
+  $("relateSelect").addEventListener("change", e => {
+    const other = state.rules.find(r => r.id === e.target.value);
+    e.target.value = "";
+    if (!other) return;
+    const rule = current();
+    RT.relate(state, rule, other);
+    $("ruleEnabled").checked = rule.enabled;
+    renderList();
+    renderRelated();
+    scheduleSave();
+  });
   $("matchType").addEventListener("change", e => { current().match.type = e.target.value; updateMatchUi(); scheduleSave(); });
   $("matchValue").addEventListener("input", e => {
     const rule = current();
@@ -522,6 +577,7 @@ async function init() {
     const copy = RT.normalizeRule(JSON.parse(JSON.stringify(current())));
     copy.id = RT.uid();
     copy.name += " (copia)";
+    if (copy.relGroup) copy.enabled = false; // sigue en el mismo grupo de relacionadas, pero inactiva
     const idx = state.rules.findIndex(r => r.id === selectedId);
     state.rules.splice(idx + 1, 0, copy);
     select(copy.id);

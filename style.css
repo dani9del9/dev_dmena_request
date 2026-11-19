@@ -68,6 +68,11 @@ input.mono, textarea.mono { font-family: ui-monospace, "Cascadia Code", Consolas
 .status.err { color: var(--danger); }
 .hidden { display: none !important; }
 
+/* Botón de ayuda */
+.head-right { display: flex; align-items: center; gap: 10px; }
+.help-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1.5px solid var(--accent); background: #fff; color: var(--accent-dark); font-weight: 800; font-size: 14px; text-decoration: none; cursor: pointer; }
+.help-btn:hover { background: var(--accent); color: #fff; }
+
 /* Etiquetas de tipo */
 .chip { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 6px; border-radius: 9px; margin-right: 4px; line-height: 15px; }
 .chip.headers { background: var(--k-headers-soft); color: #17806a; }

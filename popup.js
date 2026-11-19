@@ -51,6 +51,8 @@ function render() {
     const name = document.createElement("div");
     name.className = "name";
     name.textContent = rule.name || "(sin nombre)";
+    const rel = RT.relatedOf(state, rule);
+    if (rel.length) name.prepend(Object.assign(document.createElement("span"), { className: "rel-mark", textContent: "⇄ ", title: "Relacionada con: " + rel.map(r => r.name).join(", ") + " (solo una activa)" }));
     const sub = document.createElement("div");
     sub.className = "sub";
     sub.textContent = `${RT.describeMatch(rule)} — ${RT.summarize(rule)}`;
@@ -66,7 +68,8 @@ function render() {
     cb.checked = rule.enabled;
     sw.addEventListener("click", e => e.stopPropagation());
     cb.addEventListener("change", async () => {
-      rule.enabled = cb.checked;
+      RT.setEnabled(state, rule, cb.checked);
+      render();
       setStatus(await RT.saveAndApply(state));
     });
 
@@ -106,6 +109,7 @@ async function init() {
   });
 
   $("openEditorBtn").addEventListener("click", () => openEditor());
+  $("helpBtn").addEventListener("click", () => { chrome.tabs.create({ url: chrome.runtime.getURL("help.html") }); window.close(); });
 
   // Exportar / importar
   $("exportBtn").addEventListener("click", () => {

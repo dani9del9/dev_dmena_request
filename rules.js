@@ -40,6 +40,7 @@ const RT = (() => {
       requestHeaders: [],
       responseHeaders: [],
       redirect: { enabled: false, mode: "url", url: "", regexSub: "" },
+      relGroup: null, // reglas con el mismo grupo son excluyentes: solo una activa
       ...partial
     };
   }
@@ -65,6 +66,7 @@ const RT = (() => {
     const st = data[STORAGE_KEY];
     if (!st || !Array.isArray(st.rules)) return defaultState();
     st.rules = st.rules.map(normalizeRule);
+    enforceGroups(st);
     st.trash = Array.isArray(st.trash)
       ? st.trash.filter(t => t && t.rule).map(t => ({ ...t, rule: normalizeRule(t.rule) }))
       : [];
@@ -383,6 +385,58 @@ const RT = (() => {
       .filter(x => x.fn);
   }
 
+  // ---------- Reglas relacionadas (excluyentes) ----------
+  function relatedOf(state, rule) {
+    if (!rule?.relGroup) return [];
+    return state.rules.filter(r => r.id !== rule.id && r.relGroup === rule.relGroup);
+  }
+
+  // Activa/desactiva una regla. Al activarla se desactivan sus relacionadas.
+  // Devuelve las reglas que se han desactivado.
+  function setEnabled(state, rule, on) {
+    rule.enabled = !!on;
+    if (!on) return [];
+    const off = relatedOf(state, rule).filter(r => r.enabled);
+    off.forEach(r => { r.enabled = false; });
+    return off;
+  }
+
+  // Relaciona a con b (fusiona sus grupos). Si quedan varias activas, se queda activa "a" (o la primera).
+  function relate(state, a, b) {
+    // Regla que debe seguir activa: la propia "a" si lo está; si no, la que ya estuviera activa en su grupo.
+    const keep = a.enabled ? a
+      : (a.relGroup && state.rules.find(r => r.relGroup === a.relGroup && r.enabled)) || null;
+    const g = a.relGroup || b.relGroup || "g" + uid();
+    const old = [a.relGroup, b.relGroup].filter(x => x && x !== g);
+    for (const r of [...state.rules, ...(state.trash || []).map(t => t.rule)]) {
+      if (old.includes(r.relGroup)) r.relGroup = g;
+    }
+    a.relGroup = g;
+    b.relGroup = g;
+    if (keep) setEnabled(state, keep, true);
+    else enforceGroups(state);
+  }
+
+  // Saca la regla de su grupo. Si el grupo se queda con una sola regla, se disuelve.
+  function unrelate(state, rule) {
+    const g = rule.relGroup;
+    if (!g) return;
+    rule.relGroup = null;
+    const rest = state.rules.filter(r => r.relGroup === g);
+    const inTrash = (state.trash || []).some(t => t.rule.relGroup === g);
+    if (rest.length === 1 && !inTrash) rest[0].relGroup = null;
+  }
+
+  // Garantiza como mucho una regla activa por grupo (gana la primera de la lista).
+  function enforceGroups(state) {
+    const seen = new Set();
+    for (const r of state.rules) {
+      if (!r.relGroup || !r.enabled) continue;
+      if (seen.has(r.relGroup)) r.enabled = false;
+      else seen.add(r.relGroup);
+    }
+  }
+
   // ---------- Exportar / importar ----------
   function exportJson(state) {
     return JSON.stringify({ app: "dmena_request", version: 2, exportedAt: new Date().toISOString(), enabled: state.enabled, rules: state.rules }, null, 2);
@@ -408,11 +462,15 @@ const RT = (() => {
     try { data = JSON.parse(text); } catch { throw new Error("El fichero no es un JSON válido."); }
     const rules = Array.isArray(data) ? data : data?.rules;
     if (!Array.isArray(rules)) throw new Error("El JSON no contiene una lista de reglas.");
-    return rules.filter(r => r && typeof r === "object").map(r => normalizeRule({ ...r, id: uid() }));
+    const groupMap = {};
+    return rules.filter(r => r && typeof r === "object").map(r => normalizeRule({
+      ...r, id: uid(),
+      relGroup: r.relGroup ? (groupMap[r.relGroup] ||= "g" + uid()) : null
+    }));
   }
 
   return {
-    exportJson, downloadJson, parseImport,
+    exportJson, downloadJson, parseImport, relatedOf, setEnabled, relate, unrelate, enforceGroups,
     RESOURCE_TYPES, ALL_TYPES, newRule, normalizeRule, defaultState, load, save, apply, saveAndApply,
     validateRule, checkRegex, toDnrRules, toDnrGroups, hasHostPermission, requestHostPermission,
     summarize, describeMatch, uid, hasRedirect, ruleKinds, compileState, urlFilterToRegex, STORAGE_KEY

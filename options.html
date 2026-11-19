@@ -12,7 +12,10 @@
   <aside>
     <div class="aside-head">
       <div class="brand"><img src="icons/orchid48.png" alt=""><h1>dmena_request</h1></div>
-      <label class="switch" title="Activar / desactivar todo"><input type="checkbox" id="globalToggle"><span></span></label>
+      <div class="head-right">
+        <a href="help.html" target="_blank" class="help-btn" title="Ayuda: cómo funciona dmena_request">?</a>
+        <label class="switch" title="Activar / desactivar todo"><input type="checkbox" id="globalToggle"><span></span></label>
+      </div>
     </div>
     <div class="new-btns">
       <button id="addRuleBtn" class="primary">+ Nueva regla</button>
@@ -63,6 +66,14 @@
         <button type="button" id="delRuleBtn" class="danger" title="Mover a la papelera">🗑 Eliminar</button>
       </div>
       <div id="ruleErrors" class="errors hidden"></div>
+
+      <section class="card related-card">
+        <div class="card-head">
+          <h3>⇄ Relacionadas <span class="muted small">(solo puede estar activa una a la vez)</span></h3>
+          <select id="relateSelect" class="w-auto relate-select"><option value="">+ Relacionar con…</option></select>
+        </div>
+        <div id="relatedList" class="related-list"></div>
+      </section>
 
       <section class="card">
         <h3>1. ¿A qué peticiones se aplica?</h3>

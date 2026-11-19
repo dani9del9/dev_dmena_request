@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ayuda — dmena_request</title>
+<link rel="icon" href="icons/orchid32.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="help.css">
+</head>
+<body>
+<div class="layout">
+  <nav class="toc">
+    <div class="brand"><img src="icons/orchid48.png" alt=""><div><h1>dmena_request</h1><span class="muted">Ayuda</span></div></div>
+    <a href="#que-es">¿Qué es?</a>
+    <a href="#empezar">Primeros pasos</a>
+    <a href="#regla">Cómo es una regla</a>
+    <a href="#patron">A qué peticiones se aplica</a>
+    <a href="#tipos">Tipos de regla (colores)</a>
+    <a href="#redireccion" class="sub">↪ Redirección</a>
+    <a href="#cab-peticion" class="sub">Cabeceras de la petición</a>
+    <a href="#cab-respuesta" class="sub">Cabeceras de la respuesta</a>
+    <a href="#parametros" class="sub">Parámetros de la URL</a>
+    <a href="#combinar" class="sub">Combinar acciones</a>
+    <a href="#relacionadas">⇄ Reglas relacionadas</a>
+    <a href="#orden">Orden y prioridad</a>
+    <a href="#papelera">🗑 Papelera</a>
+    <a href="#exportar">Exportar / importar</a>
+    <a href="#popup">El popup y el icono</a>
+    <a href="#recetas">Recetas</a>
+    <a href="#problemas">Problemas frecuentes</a>
+    <a href="#firefox">Firefox</a>
+  </nav>
+
+  <main class="doc">
+
+    <section id="que-es">
+      <h2>¿Qué es dmena_request?</h2>
+      <p>Es una extensión para <b>Chrome</b> y <b>Firefox</b> que <b>modifica las peticiones que hace el navegador</b> antes de que lleguen al servidor, o las respuestas antes de que las vea la página. Funciona al estilo de Requestly. Con ella puedes:</p>
+      <ul>
+        <li><b>Redirigir</b> una URL a otra. Por ejemplo, cargar tu versión de un <code>.js</code> en lugar del de producción.</li>
+        <li><b>Añadir, cambiar o quitar cabeceras HTTP</b> de la petición, como <code>Authorization</code>, <code>Cookie</code> o <code>User-Agent</code>.</li>
+        <li><b>Cambiar cabeceras de la respuesta</b>. Por ejemplo, abrir CORS o quitar la <code>Content-Security-Policy</code>.</li>
+        <li><b>Añadir o quitar parámetros</b> en la URL, como <code>?debug=true</code> o los <code>utm_*</code>.</li>
+      </ul>
+      <p>Todo se organiza en <b>reglas</b> que puedes activar y desactivar con un clic.</p>
+    </section>
+
+    <section id="empezar">
+      <h2>Primeros pasos</h2>
+      <ol>
+        <li>Pulsa el icono de la extensión en la barra del navegador para abrir el <b>popup</b>.</li>
+        <li>Pulsa <b>Abrir editor</b>. El editor es donde se crean y se configuran las reglas.</li>
+        <li>Crea una regla con <span class="btn-ex primary">+ Nueva regla</span> o <span class="btn-ex redirect">↪ Nueva redirección</span>.</li>
+        <li>Rellénala. <b>Los cambios se guardan y se aplican al instante</b>, no hay botón de guardar. Abajo verás <span class="ok">✓ Guardado y aplicado</span>.</li>
+        <li>Recarga la página donde quieres probarla.</li>
+      </ol>
+      <div class="note">El <b>interruptor general</b> (arriba a la derecha en el popup y en el editor) apaga o enciende toda la extensión sin tocar tus reglas. Con la extensión apagada, el icono se ve en gris.</div>
+    </section>
+
+    <section id="regla">
+      <h2>Cómo es una regla</h2>
+      <p>Cada regla tiene:</p>
+      <ul>
+        <li><b>Nombre</b>: para reconocerla.</li>
+        <li><b>Interruptor</b>: activa o desactiva la regla. Una regla desactivada se conserva, pero no hace nada.</li>
+        <li><b>A qué peticiones se aplica</b>: el patrón de URL. Es obligatorio, salvo que elijas "Todas las URLs".</li>
+        <li><b>Las acciones</b>: qué se hace con las peticiones que cumplen el patrón (redirigir, cabeceras, parámetros). Una regla puede tener varias acciones a la vez.</li>
+        <li>Opcionalmente, <b>⇄ Relacionadas</b>: otras reglas con las que se turna.</li>
+      </ul>
+      <p>En la parte de abajo del editor, <i>"Ver reglas generadas"</i> muestra el JSON exacto que se entrega al navegador. Es útil si algo no funciona como esperas.</p>
+    </section>
+
+    <section id="patron">
+      <h2>A qué peticiones se aplica</h2>
+      <table>
+        <thead><tr><th>Tipo</th><th>Qué escribir</th><th>Ejemplo</th></tr></thead>
+        <tbody>
+          <tr><td><b>Todas las URLs</b></td><td>Nada.</td><td>—</td></tr>
+          <tr><td><b>Dominio(s)</b></td><td>Uno o varios dominios separados por coma. <b>Incluye los subdominios.</b></td><td><code>miweb.com, localhost</code></td></tr>
+          <tr><td><b>URL contiene / comodín</b></td><td>Un trozo de la URL o la URL completa. Admite comodines.</td><td><code>https://player.prisamedia.com/componentes/reels/reels.min.js</code><br><code>||miweb.com/api/*</code><br><code>/graphql</code></td></tr>
+          <tr><td><b>Expresión regular</b></td><td>Regex (sintaxis RE2) sobre la URL completa.</td><td><code>^https://(dev|pre)\.miweb\.com/.*</code></td></tr>
+        </tbody>
+      </table>
+      <h3>Comodines de "URL contiene"</h3>
+      <table class="compact">
+        <tbody>
+          <tr><td><code>*</code></td><td>Cualquier texto. <code>*/reels.min.js</code> vale para cualquier servidor.</td></tr>
+          <tr><td><code>||</code> al principio</td><td>El dominio y sus subdominios, con cualquier protocolo. <code>||miweb.com/api</code></td></tr>
+          <tr><td><code>|</code> al principio o al final</td><td>La URL tiene que <i>empezar</i> o <i>terminar</i> exactamente así. <code>|https://miweb.com/</code> · <code>.js|</code></td></tr>
+          <tr><td><code>^</code></td><td>Un separador (<code>/</code>, <code>?</code>, <code>&amp;</code>…) o el final de la URL.</td></tr>
+        </tbody>
+      </table>
+      <p class="tip">Las mayúsculas y minúsculas dan igual.</p>
+      <h3>Tipos de recurso</h3>
+      <p>En <i>"Tipos de recurso"</i> puedes limitar la regla a ciertos tipos de petición: página principal, iframes, XHR/fetch, scripts, CSS, imágenes… <b>Si no marcas ninguno, se aplica a todos.</b> Por ejemplo, para tocar solo las llamadas a una API, marca únicamente "XHR / fetch".</p>
+    </section>
+
+    <section id="tipos">
+      <h2>Tipos de regla y sus colores</h2>
+      <p>Según lo que haga, cada regla lleva un color en la lista del editor y en el popup:</p>
+      <div class="kinds">
+        <div class="kind redirect"><b>Rojo</b><span>Redirección</span></div>
+        <div class="kind params"><b>Amarillo</b><span>Parámetros de URL</span></div>
+        <div class="kind headers"><b>Verde</b><span>Cabeceras</span></div>
+      </div>
+      <p>Si una regla hace varias cosas, la barra de color indica la más importante (redirección, luego parámetros, luego cabeceras) y debajo del nombre aparece una etiqueta por cada acción.</p>
+
+      <h3 id="redireccion" class="k-redirect">↪ Redirección</h3>
+      <p>Cambia una petición por otra URL. El navegador pide la URL de destino en lugar de la original, y la página no se entera.</p>
+      <div class="example">
+        <div class="ex-title">Ejemplo: cargar otra versión de un script</div>
+        <ol>
+          <li>Pulsa <span class="btn-ex redirect">↪ Nueva redirección</span>.</li>
+          <li>En <b>¿A qué peticiones se aplica?</b>, escribe la URL original:<br><code>https://player.prisamedia.com/componentes/reels/reels.min.js</code></li>
+          <li>En <b>Redirigir a otra URL → Cargar en su lugar</b>, escribe la URL nueva:<br><code>http://localhost:3000/reels.min.js</code></li>
+        </ol>
+        <p>La regla se llama sola "Redirigir reels.min.js". Recarga la página y se cargará tu fichero.</p>
+      </div>
+      <ul>
+        <li><b>Avanzado → Sustitución regex</b>: el patrón de la regla pasa a ser una expresión regular y en el destino puedes usar sus grupos con <code>\1</code>, <code>\2</code>… <br>Patrón <code>^https://cdn\.miweb\.com/js/(.*)\.min\.js$</code> → destino <code>http://localhost:3000/\1.js</code>. Así una sola regla redirige todos los scripts.</li>
+        <li><b>Protección contra bucles</b>: si el destino también cumple el patrón, la redirección no acabaría nunca. El editor lo detecta, marca la regla con error y no la aplica. La solución es hacer el patrón más concreto.</li>
+        <li>Si la página bloquea el script redirigido por <b>CSP</b>, mira <a href="#problemas">Problemas frecuentes</a>.</li>
+      </ul>
+
+      <h3 id="cab-peticion" class="k-headers">Cabeceras de la petición</h3>
+      <p>Son las cabeceras que el navegador <b>envía al servidor</b>. Hay dos operaciones:</p>
+      <ul>
+        <li><b>Poner</b>: añade la cabecera o, si ya existe, sustituye su valor.</li>
+        <li><b>Quitar</b>: elimina la cabecera.</li>
+      </ul>
+      <p>Hay <b>plantillas</b> para las más habituales: <code>Authorization: Bearer</code>, <code>Cookie</code>, <code>User-Agent</code>, <code>Origin</code>, <code>Referer</code>, <code>X-Forwarded-For</code>, <code>Accept-Language</code> y <code>Cache-Control</code>. Al escribir el nombre también te sugiere cabeceras.</p>
+      <p>Cada línea tiene su propio interruptor, así que puedes apagar una cabecera concreta sin borrarla.</p>
+
+      <h3 id="cab-respuesta" class="k-headers">Cabeceras de la respuesta</h3>
+      <p>Son las cabeceras que el servidor <b>devuelve</b>, modificadas antes de que las vea el navegador. Hay tres operaciones:</p>
+      <ul>
+        <li><b>Poner</b>: añade o sustituye.</li>
+        <li><b>Agregar</b>: añade un valor más sin borrar los que ya había. Es útil con <code>Set-Cookie</code>.</li>
+        <li><b>Quitar</b>: elimina la cabecera.</li>
+      </ul>
+      <p>Plantillas especiales:</p>
+      <ul>
+        <li><b>CORS abierto</b>: pone de golpe las 4 cabeceras <code>Access-Control-Allow-*</code> para que tu frontend local pueda llamar a una API de otro dominio.</li>
+        <li><b>Quitar CSP y X-Frame-Options</b>: permite cargar scripts de otros orígenes o meter la web en un iframe.</li>
+      </ul>
+
+      <h3 id="parametros" class="k-params">Parámetros de la URL</h3>
+      <ul>
+        <li><b>Añadir</b>: añade el parámetro con ese valor o, si ya existe, lo reemplaza. Con <i>"solo si existe"</i>, solo lo reemplaza cuando ya está en la URL.</li>
+        <li><b>Quitar</b>: elimina el parámetro (por ejemplo, <code>utm_source</code>).</li>
+      </ul>
+      <p>Para cambiar los parámetros, el navegador hace una pequeña redirección interna a la misma URL con los parámetros nuevos. En la página principal verás la URL cambiada en la barra de direcciones. Si la URL ya tiene los parámetros correctos, no hace nada, así que no se produce ningún bucle.</p>
+
+      <h3 id="combinar">Combinar acciones en una regla</h3>
+      <ul>
+        <li><b>Cabeceras + parámetros</b>: se aplican las dos cosas.</li>
+        <li><b>Redirección + parámetros</b>: <b>manda la redirección</b> y los parámetros de esa regla se ignoran. El editor te lo avisa en la sección de parámetros.</li>
+        <li><b>Redirección + cabeceras</b>: las cabeceras solo se aplican si la URL de destino también cumple el patrón de la regla. Si necesitas cabeceras en el destino, crea otra regla para la URL de destino.</li>
+      </ul>
+    </section>
+
+    <section id="relacionadas">
+      <h2>⇄ Reglas relacionadas (solo una activa a la vez)</h2>
+      <p>Sirven para tener <b>varias alternativas de lo mismo y cambiar de una a otra con un clic</b>. Por ejemplo, varias redirecciones del mismo script hacia distintos entornos:</p>
+      <div class="diagram">
+        <div class="grp">
+          <div class="grp-title">Grupo «reels.min.js»</div>
+          <div class="gr on"><span class="dot"></span>R1 · local (localhost:3000)<em>● activa</em></div>
+          <div class="gr"><span class="dot"></span>R2 · preproducción<em>○ inactiva</em></div>
+          <div class="gr"><span class="dot"></span>R3 · rama de un compañero<em>○ inactiva</em></div>
+        </div>
+        <div class="arrow">Activas R2 →</div>
+        <div class="grp">
+          <div class="grp-title">Grupo «reels.min.js»</div>
+          <div class="gr"><span class="dot"></span>R1 · local (localhost:3000)<em>○ inactiva</em></div>
+          <div class="gr on"><span class="dot"></span>R2 · preproducción<em>● activa</em></div>
+          <div class="gr"><span class="dot"></span>R3 · rama de un compañero<em>○ inactiva</em></div>
+        </div>
+      </div>
+      <h3>Cómo se relacionan</h3>
+      <ol>
+        <li>Abre R1 en el editor. En la tarjeta <b>⇄ Relacionadas</b>, elige R2 en <i>"+ Relacionar con…"</i>.</li>
+        <li>La relación es <b>mutua</b>: ahora R1 aparece en las relacionadas de R2.</li>
+        <li>Es <b>en cadena</b>: si después relacionas R2 con R3, las tres forman un mismo grupo y no hace falta relacionar R1 con R3.</li>
+      </ol>
+      <h3>Cómo funcionan</h3>
+      <ul>
+        <li>Al <b>activar</b> una regla del grupo, <b>se desactivan automáticamente las demás</b>. Da igual dónde la actives: la lista, el interruptor del editor, el popup o el botón <span class="btn-ex">Activar</span> de la tarjeta de relacionadas. Abajo sale un aviso con lo que se ha desactivado.</li>
+        <li>Puedes <b>desactivarlas todas</b>: el grupo no obliga a tener una activa.</li>
+        <li>En la tarjeta ves cuál está <b>● activa</b>. Haz clic en un nombre para saltar a esa regla, o pulsa <b>✕</b> para sacarla del grupo. Si en un grupo solo queda una regla, el grupo desaparece.</li>
+        <li>En la lista, las reglas agrupadas llevan la etiqueta <span class="chip rel">⇄ 2</span> (el número indica cuántas relacionadas tiene). En el popup llevan <b>⇄</b> delante del nombre.</li>
+        <li>Si <b>relacionas</b> reglas que estaban activas a la vez, sigue activa la que estabas usando.</li>
+        <li>Si <b>duplicas</b> una regla agrupada, la copia entra en el mismo grupo, pero desactivada. Es la forma más rápida de crear otra alternativa.</li>
+        <li>Si restauras una regla de la papelera y en su grupo ya hay otra activa, vuelve desactivada.</li>
+      </ul>
+      <p class="tip">Las reglas relacionadas no tienen por qué ser del mismo tipo. Puedes agrupar, por ejemplo, dos juegos de cabeceras distintos, como "usuario admin" y "usuario normal".</p>
+    </section>
+
+    <section id="orden">
+      <h2>Orden y prioridad</h2>
+      <p>Arrastra las reglas por el asa <b>⋮⋮</b> de su izquierda. Mientras arrastras, una línea marca dónde caerá la regla.</p>
+      <p><b>Las de arriba tienen más prioridad.</b> Esto importa cuando dos reglas tocan la misma petición. Por ejemplo, si dos redirecciones cumplen el mismo patrón, gana la de más arriba.</p>
+    </section>
+
+    <section id="papelera">
+      <h2>🗑 Papelera</h2>
+      <ul>
+        <li><b>🗑 Eliminar</b> no borra la regla: la manda a la papelera, que está debajo de la lista. También puedes <b>arrastrar</b> una regla y soltarla encima de la papelera.</li>
+        <li>Al <b>hacer clic</b> en una regla de la papelera, se abre en el editor en modo solo lectura, para ver qué hacía.</li>
+        <li><b>↺ Restaurar</b> la devuelve a la posición que tenía. <b>✕</b> la borra definitivamente. <b>Vaciar</b> borra todo lo que hay en la papelera. Estas dos últimas piden confirmación.</li>
+        <li>Las reglas de la papelera no se aplican nunca.</li>
+      </ul>
+    </section>
+
+    <section id="exportar">
+      <h2>Exportar e importar (JSON)</h2>
+      <ul>
+        <li><b>⬇ Exportar JSON</b> (en el editor y en el popup) descarga todas tus reglas en <code>dmena_request-reglas-FECHA.json</code>, incluidos los grupos de relacionadas. La papelera no se exporta.</li>
+        <li><b>⬆ Importar JSON</b> carga un fichero exportado. Si ya tienes reglas, te pregunta:
+          <ul>
+            <li><b>Reemplazar</b>: las reglas actuales pasan a la papelera, así que no se pierden.</li>
+            <li><b>Añadir</b>: las importadas se suman a las que tienes.</li>
+          </ul>
+        </li>
+        <li>En el editor también puedes <b>arrastrar el .json</b> sobre la ventana.</li>
+      </ul>
+      <p class="tip">Es la forma de pasar tus reglas a otro navegador u ordenador, o de compartirlas con alguien de tu equipo.</p>
+    </section>
+
+    <section id="popup">
+      <h2>El popup y el icono</h2>
+      <ul>
+        <li><b>Punto rojo</b> en la esquina del icono: la extensión ha modificado alguna petición en esa pestaña. Se quita al navegar a una página donde no actúa.</li>
+        <li>Arriba del popup, <b>"⚡ N peticiones modificadas en esta pestaña"</b>. Las reglas que han actuado aparecen resaltadas y con su contador.</li>
+        <li><b>+ Regla para este sitio</b> crea una regla ya limitada al dominio de la pestaña actual.</li>
+        <li>Desde el popup puedes activar y desactivar reglas (se respetan los grupos), exportar e importar.</li>
+      </ul>
+      <p class="tip">El contador cuenta <i>todas</i> las peticiones afectadas, incluidas imágenes o el <code>favicon.ico</code>. Si quieres contar solo las llamadas a la API, limita la regla a "XHR / fetch".</p>
+    </section>
+
+    <section id="recetas">
+      <h2>Recetas rápidas</h2>
+      <div class="recipes">
+        <div class="recipe k-redirect-b"><h4>Probar mi JS en una web real</h4><p>↪ Nueva redirección · patrón: URL del <code>.js</code> de producción · cargar en su lugar: <code>http://localhost:3000/mi.js</code>. Si la web usa CSP, añade otra regla con "Quitar CSP".</p></div>
+        <div class="recipe k-redirect-b"><h4>Cambiar de entorno con un clic</h4><p>Crea una redirección por entorno (local, pre, otra rama), relaciónalas entre sí y activa en cada momento la que quieras.</p></div>
+        <div class="recipe k-headers-b"><h4>Token en las llamadas a una API</h4><p>Dominio: <code>api.miweb.com</code> · Tipos: XHR / fetch · Cabecera de petición: <i>Poner</i> <code>Authorization</code> = <code>Bearer …</code></p></div>
+        <div class="recipe k-headers-b"><h4>Evitar errores de CORS en local</h4><p>Dominio de la API · Cabeceras de respuesta → plantilla <b>CORS abierto</b>.</p></div>
+        <div class="recipe k-headers-b"><h4>Hacerte pasar por otro usuario o dispositivo</h4><p>Dos reglas relacionadas con distinta <code>Cookie</code> o <code>User-Agent</code>, y vas alternando entre ellas.</p></div>
+        <div class="recipe k-params-b"><h4>Modo debug siempre puesto</h4><p>Dominio de tu web · Parámetros: <i>Añadir</i> <code>debug</code> = <code>true</code>.</p></div>
+        <div class="recipe k-params-b"><h4>Limpiar los utm</h4><p>Todas las URLs · Tipos: Página principal · Parámetros: <i>Quitar</i> <code>utm_source</code>, <code>utm_medium</code>, <code>utm_campaign</code>.</p></div>
+      </div>
+    </section>
+
+    <section id="problemas">
+      <h2>Problemas frecuentes</h2>
+      <dl>
+        <dt>No veo mis cabeceras en la pestaña Network de DevTools</dt>
+        <dd>Es normal: el navegador no muestra ahí las cabeceras que modifica una extensión, pero sí llegan al servidor. Compruébalo en el servidor o con un servicio que te devuelva las cabeceras que recibe.</dd>
+        <dt>La redirección de un script no funciona y en la consola sale un error de "Content-Security-Policy"</dt>
+        <dd>La web solo permite scripts de ciertos dominios. Crea otra regla con el dominio de esa web y, en <i>Cabeceras de la respuesta</i>, usa la plantilla <b>Quitar CSP y X-Frame-Options</b>.</dd>
+        <dt>La regla sale con ⚠ o un recuadro rojo</dt>
+        <dd>Tiene un error: falta el patrón, una cabecera no tiene nombre, la regex no es válida, el destino provocaría un bucle… El mensaje te dice qué falla. Mientras tenga errores, esa regla no se aplica, pero las demás sí.</dd>
+        <dt>He cambiado la regla y no pasa nada</dt>
+        <dd>Recarga la página: las reglas afectan a las peticiones nuevas. Si es un fichero que el navegador tiene en caché, haz una recarga forzada con <kbd>Ctrl</kbd>+<kbd>F5</kbd>. Revisa también que el interruptor general y el de la regla estén encendidos, y que no haya otra regla relacionada activa.</dd>
+        <dt>No funciona en algunas páginas</dt>
+        <dd>Las extensiones no pueden actuar en páginas internas (<code>chrome://</code>, <code>about:</code>) ni en las tiendas de extensiones.</dd>
+        <dt>He actualizado la extensión y no veo los cambios</dt>
+        <dd>En <code>chrome://extensions</code>, pulsa ↻ en dmena_request. Mira en <i>Detalles → Cargada desde</i> que sea la carpeta correcta.</dd>
+      </dl>
+    </section>
+
+    <section id="firefox">
+      <h2>Firefox</h2>
+      <ul>
+        <li>Usa <code>dmena_request-firefox.zip</code>, que lleva su propio manifest. Para instalarlo: <code>about:debugging</code> → <i>Este Firefox</i> → <b>Cargar complemento temporal…</b>.</li>
+        <li>Firefox no concede automáticamente el permiso para acceder a los sitios. Si ves un aviso amarillo, pulsa <b>Conceder</b>.</li>
+        <li>El botón de importar del popup abre el editor, porque Firefox cierra el popup al abrir el selector de ficheros.</li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>
