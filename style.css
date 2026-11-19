@@ -17,6 +17,7 @@
   --k-headers: #2bb59a;  --k-headers-soft: #e3f6f0;
   --k-redirect: #e57c76; --k-redirect-soft: #fdeceb;
   --k-params: #e2b83b;   --k-params-soft: #fdf6dc;
+  --k-inject: #4f8fd8;   --k-inject-soft: #e6f0fb;
   --k-none: #c5d1cc;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 14.5px;
@@ -78,7 +79,9 @@ input.mono, textarea.mono { font-family: ui-monospace, "Cascadia Code", Consolas
 .chip.headers { background: var(--k-headers-soft); color: #17806a; }
 .chip.redirect { background: var(--k-redirect-soft); color: #b9443d; }
 .chip.params { background: var(--k-params-soft); color: #8a6a07; }
+.chip.inject { background: var(--k-inject-soft); color: #2563a8; }
 .kind-bar-headers { --kind: var(--k-headers); --kind-soft: var(--k-headers-soft); }
 .kind-bar-redirect { --kind: var(--k-redirect); --kind-soft: var(--k-redirect-soft); }
 .kind-bar-params { --kind: var(--k-params); --kind-soft: var(--k-params-soft); }
+.kind-bar-inject { --kind: var(--k-inject); --kind-soft: var(--k-inject-soft); }
 .kind-bar-none { --kind: var(--k-none); --kind-soft: var(--panel2); }

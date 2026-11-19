@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "dmena_request",
-  "version": "1.10.0",
+  "version": "1.11.3",
   "description": "Modifica cabeceras de petición/respuesta y añade o quita parámetros de URL mediante reglas (estilo Requestly).",
   "permissions": [
     "declarativeNetRequest",
@@ -41,7 +41,10 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "reqtweak@dani9del9",
-      "strict_min_version": "128.0"
+      "strict_min_version": "136.0"
     }
-  }
+  },
+  "optional_permissions": [
+    "userScripts"
+  ]
 }

@@ -30,7 +30,7 @@ function setStatus(res) {
   const s = $("status");
   if (res === "saving") { s.textContent = "Guardando…"; s.className = "status"; return; }
   if (res.ok && res.msg) { s.textContent = res.msg; s.className = "status ok"; return; }
-  if (res.ok) { s.textContent = `✓ Guardado y aplicado — ${res.count} regla(s) del navegador activas${state.enabled ? "" : " (dmena_request desactivado)"}`; s.className = "status ok"; }
+  if (res.ok) { s.textContent = `✓ Guardado y aplicado — ${res.count} regla(s) del navegador activas${res.scripts ? ` · ${res.scripts} script(s) de inyección` : ""}${state.enabled ? "" : " (dmena_request desactivado)"}`; s.className = "status ok"; }
   else { s.textContent = "⚠ " + res.error; s.className = "status err"; }
 }
 
@@ -203,7 +203,7 @@ function renderTrash() {
   });
 }
 
-const KIND_LABEL = { headers: "Cabeceras", redirect: "Redirección", params: "Parámetros" };
+const KIND_LABEL = { headers: "Cabeceras", redirect: "Redirección", params: "Parámetros", inject: "Inyección JS" };
 function kindChips(kinds, related = []) {
   const box = el("div", { className: "ri-chips" });
   kinds.forEach(k => box.append(el("span", { className: "chip " + k, textContent: KIND_LABEL[k] })));
@@ -297,6 +297,7 @@ function renderEditor() {
   renderHeaderList("resHeaders", rule.responseHeaders, ["set", "append", "remove"], "resHeaderNames");
   renderParams();
   renderRedirect();
+  renderInject();
   renderRelated();
   renderErrors();
   renderPreview();
@@ -312,6 +313,60 @@ function renderRedirect() {
   if (rd.mode === "regex") $("adv").open = true;
   $("redirectBody").classList.toggle("off", !rd.enabled);
   updateParamsDim();
+}
+
+// ---------------- Inyección de JS ----------------
+let codeEd = null;
+const WHEN_HELP = {
+  start: "Se ejecuta <b>antes</b> de que cargue la página, antes que sus propios scripts. Útil para sustituir funciones (<code>window.fetch</code>, <code>console.log</code>…) o preparar variables. El <code>document.body</code> aún no existe.",
+  end: "Se ejecuta <b>después</b> de que la página haya cargado del todo (evento <code>load</code>). Útil para tocar el DOM, añadir estilos o pulsar botones."
+};
+
+function renderInject() {
+  const rule = current();
+  const inj = rule.inject;
+  $("injectEnabled").checked = !!inj.enabled;
+  document.querySelectorAll('input[name="injectWhen"]').forEach(r => { r.checked = r.value === (inj.when || "start"); });
+  $("injectWhenHelp").innerHTML = WHEN_HELP[inj.when || "start"];
+  $("injectFileName").textContent = inj.fileName ? "📄 " + inj.fileName : "";
+  $("injectBody").classList.toggle("off", !inj.enabled);
+  codeEd.setValue(inj.code || "");
+  checkUserScripts();
+}
+
+function enableInject(rule) {
+  if (rule.inject.enabled) return;
+  rule.inject.enabled = true;
+  $("injectEnabled").checked = true;
+  $("injectBody").classList.remove("off");
+}
+
+let usOk = null;
+async function checkUserScripts() {
+  const st = await RT.userScriptsStatus();
+  const needs = state.rules.some(r => r.inject?.enabled) || !!current()?.inject?.enabled;
+  const banner = $("usBanner");
+  if (st.ok || !needs) {
+    banner.classList.add("hidden");
+  } else {
+    banner.classList.remove("hidden");
+    if (st.reason === "chrome-reload") {
+      $("usBannerText").innerHTML = `Chrome tiene cargada una versión antigua de la extensión (<b>${chrome.runtime.getManifest().version}</b>) que no incluye el permiso para inyectar código. Recárgala y después activa <b>«Permitir scripts de usuario»</b> en sus detalles.`;
+      $("usBannerBtn").textContent = "↻ Recargar extensión";
+      $("usBannerBtn").dataset.action = "reload";
+    } else if (st.reason === "firefox-permission") {
+      $("usBannerText").textContent = "Firefox necesita tu permiso para ejecutar scripts de usuario en las páginas.";
+      $("usBannerBtn").textContent = "Conceder permiso";
+      $("usBannerBtn").dataset.action = "firefox";
+    } else {
+      $("usBannerText").innerHTML = "Para inyectar código, Chrome exige activar <b>«Permitir scripts de usuario»</b> en los detalles de la extensión. Actívalo y vuelve a esta pestaña.";
+      $("usBannerBtn").textContent = "Abrir ajustes de la extensión";
+      $("usBannerBtn").dataset.action = "chrome";
+    }
+  }
+  // Si el permiso acaba de activarse, se vuelven a aplicar las reglas.
+  if (usOk === false && st.ok) saveNow();
+  usOk = st.ok;
 }
 
 function updateParamsDim() {
@@ -496,6 +551,63 @@ async function init() {
   $("editor").addEventListener("submit", e => e.preventDefault());
   $("globalToggle").addEventListener("change", e => { state.enabled = e.target.checked; scheduleSave(); });
   $("addRuleBtn").addEventListener("click", () => addRule());
+  $("addInjectBtn").addEventListener("click", () => {
+    addRule({ name: "Nueva inyección JS", match: { type: "url", value: "", resourceTypes: [] },
+      inject: { enabled: true, when: "end", code: "", fileName: "" } });
+    $("matchValue").focus();
+  });
+
+  // Editor de código
+  codeEd = CodeEditor.create($("injectCode"), { placeholder: "// Escribe aquí tu JavaScript o carga un fichero .js\nconsole.log('Hola desde dmena_request');" });
+  codeEd.onChange(v => {
+    const rule = current();
+    if (!rule) return;
+    rule.inject.code = v;
+    if (v.trim()) enableInject(rule);
+    scheduleSave();
+  });
+  $("injectEnabled").addEventListener("change", e => {
+    current().inject.enabled = e.target.checked;
+    $("injectBody").classList.toggle("off", !e.target.checked);
+    if (e.target.checked) codeEd.focus();
+    checkUserScripts();
+    scheduleSave();
+  });
+  document.querySelectorAll('input[name="injectWhen"]').forEach(r => r.addEventListener("change", () => {
+    current().inject.when = r.value;
+    $("injectWhenHelp").innerHTML = WHEN_HELP[r.value];
+    scheduleSave();
+  }));
+  $("injectFileBtn").addEventListener("click", () => $("injectFile").click());
+  $("injectFile").addEventListener("change", async e => {
+    const f = e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    const rule = current();
+    if (rule.inject.code.trim() && !confirm(`¿Sustituir el código actual por el contenido de «${f.name}»?`)) return;
+    rule.inject.code = await f.text();
+    rule.inject.fileName = f.name;
+    enableInject(rule);
+    if (/^(Nueva regla|Nueva inyección JS)$/.test(rule.name)) { rule.name = "Inyectar " + f.name; $("ruleName").value = rule.name; }
+    codeEd.setValue(rule.inject.code);
+    $("injectFileName").textContent = "📄 " + f.name;
+    scheduleSave();
+  });
+  $("usBannerBtn").addEventListener("click", async e => {
+    if (e.currentTarget.dataset.action === "reload") {
+      // Al recargar se cierra esta pestaña; se abren los detalles para activar el interruptor.
+      await chrome.tabs.create({ url: "chrome://extensions/?id=" + chrome.runtime.id });
+      chrome.runtime.reload();
+    } else if (e.currentTarget.dataset.action === "firefox") {
+      try { await chrome.permissions.request({ permissions: ["userScripts"] }); } catch {}
+      checkUserScripts();
+    } else {
+      chrome.tabs.create({ url: "chrome://extensions/?id=" + chrome.runtime.id });
+    }
+  });
+  window.addEventListener("focus", () => { if (current()) checkUserScripts(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && current()) checkUserScripts(); });
+
   $("addRedirectBtn").addEventListener("click", () => {
     addRule({ name: "Nueva redirección", match: { type: "url", value: "", resourceTypes: [] },
       redirect: { enabled: true, mode: "url", url: "", regexSub: "" } });

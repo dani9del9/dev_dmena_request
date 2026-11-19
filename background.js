@@ -88,9 +88,19 @@ function resetTab(tabId) {
   seen.delete(tabId);
 }
 
+// Comprobación de scripts de inyección pendientes, como mucho una vez cada 3 s.
+let lastScriptCheck = 0;
+function checkScriptsSoon() {
+  const now = Date.now();
+  if (now - lastScriptCheck < 3000) return;
+  lastScriptCheck = now;
+  RT.load().then(st => RT.ensureUserScripts(st)).catch(() => {});
+}
+
 chrome.webRequest.onBeforeRequest.addListener(details => {
   const { tabId, type, url, requestId } = details;
   if (tabId < 0) return;
+  if (type === "main_frame") checkScriptsSoon();
   (async () => {
     await ensureLoaded();
     // Nueva navegación en la pestaña: contador a cero.
@@ -142,6 +152,14 @@ async function startup() {
   await ensureLoaded();
   updateGlobalBadge();
 }
+
+// Registra de nuevo los scripts de inyección (por si el permiso se concedió con el navegador cerrado).
+async function resyncScripts() {
+  try { await RT.apply(await RT.load()); } catch {}
+}
+chrome.runtime.onStartup.addListener(resyncScripts);
+chrome.runtime.onInstalled.addListener(resyncScripts);
+try { chrome.permissions.onAdded.addListener(resyncScripts); } catch {}
 chrome.runtime.onStartup.addListener(startup);
 startup();
 chrome.runtime.onInstalled.addListener(startup);

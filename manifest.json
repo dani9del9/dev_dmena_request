@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "dmena_request",
-  "version": "1.10.0",
+  "version": "1.11.3",
   "description": "Modifica cabeceras de petición/respuesta y añade o quita parámetros de URL mediante reglas (estilo Requestly).",
   "permissions": [
     "declarativeNetRequest",
     "storage",
     "tabs",
-    "webRequest"
+    "webRequest",
+    "userScripts"
   ],
   "host_permissions": [
     "<all_urls>"

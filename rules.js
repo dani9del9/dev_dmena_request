@@ -40,6 +40,7 @@ const RT = (() => {
       requestHeaders: [],
       responseHeaders: [],
       redirect: { enabled: false, mode: "url", url: "", regexSub: "" },
+      inject: { enabled: false, when: "start", code: "", fileName: "" },
       relGroup: null, // reglas con el mismo grupo son excluyentes: solo una activa
       ...partial
     };
@@ -53,6 +54,7 @@ const RT = (() => {
     if (!Array.isArray(out.responseHeaders)) out.responseHeaders = [];
     if (!Array.isArray(out.match.resourceTypes)) out.match.resourceTypes = [];
     out.redirect = { ...base.redirect, ...(r.redirect || {}) };
+    out.inject = { ...base.inject, ...(r.inject || {}) };
     if (!out.id) out.id = uid();
     return out;
   }
@@ -84,11 +86,18 @@ const RT = (() => {
     return rd.mode === "regex" ? !!String(rd.regexSub || "").trim() : !!String(rd.url || "").trim();
   }
 
-  // Qué hace la regla (para colores y etiquetas). Orden: redirección, parámetros, cabeceras.
+  // ¿La regla inyecta código JS?
+  function hasInject(r) {
+    const inj = r.inject || {};
+    return !!inj.enabled && !!String(inj.code || "").trim();
+  }
+
+  // Qué hace la regla (para colores y etiquetas). Orden: redirección, inyección, parámetros, cabeceras.
   function ruleKinds(r) {
     const on = l => (l || []).some(x => x.enabled !== false && String(x.name || x.key || "").trim());
     const kinds = [];
     if (hasRedirect(r)) kinds.push("redirect");
+    if (hasInject(r)) kinds.push("inject");
     if (on(r.queryParams)) kinds.push("params");
     if (on(r.requestHeaders) || on(r.responseHeaders)) kinds.push("headers");
     return kinds;
@@ -114,6 +123,9 @@ const RT = (() => {
     checkHeaders(r.responseHeaders, "respuesta");
     for (const p of r.queryParams || []) {
       if (p.enabled !== false && !String(p.key || "").trim()) errors.push("Parámetro de URL sin nombre.");
+    }
+    if (r.inject?.enabled && !String(r.inject.code || "").trim()) {
+      errors.push("Falta el código JavaScript que se va a inyectar.");
     }
     const rd = r.redirect || {};
     if (rd.enabled) {
@@ -240,7 +252,115 @@ const RT = (() => {
 
   // Aplica las reglas al navegador. Devuelve {ok, count, error, failed:[ruleId]}.
   // Si el lote completo falla, aplica regla a regla para que una mala no rompa las demás.
+  // ---------- Inyección de JS (API userScripts) ----------
+  const US_PREFIX = "dmr_";
+
+  // ¿Está disponible la API? En Chrome hay que activar "Permitir scripts de usuario"
+  // en los detalles de la extensión; en Firefox es un permiso opcional que hay que conceder.
+  async function userScriptsStatus() {
+    const isFirefox = typeof navigator !== "undefined" && navigator.userAgent.includes("Firefox");
+    if (isFirefox) {
+      let granted = false;
+      try { granted = await chrome.permissions.contains({ permissions: ["userScripts"] }); } catch {}
+      if (!granted) return { ok: false, reason: "firefox-permission" };
+    }
+    // Chrome aún tiene cargado un manifest antiguo (sin el permiso): hay que recargar la extensión.
+    if (!isFirefox && !(chrome.runtime.getManifest().permissions || []).includes("userScripts")) {
+      return { ok: false, reason: "chrome-reload" };
+    }
+    try {
+      if (!chrome.userScripts) return { ok: false, reason: isFirefox ? "firefox-permission" : "chrome-toggle" };
+      await chrome.userScripts.getScripts();
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: isFirefox ? "firefox-permission" : "chrome-toggle" };
+    }
+  }
+
+  // Envuelve el código del usuario: filtra por URL, respeta el momento y avisa de errores en consola.
+  function wrapUserCode(rule) {
+    const m = rule.match || {};
+    const value = String(m.value || "").trim();
+    let gate = "true";
+    if (m.type === "url") gate = `new RegExp(${JSON.stringify(urlFilterToRegex(value).source)}, "i").test(location.href)`;
+    else if (m.type === "regex") gate = `new RegExp(${JSON.stringify(value)}, "i").test(location.href)`;
+    const name = JSON.stringify(rule.name || "regla");
+    const body = `try {\n${rule.inject.code}\n} catch (e) { console.error("[dmena_request] Error en el código de " + ${name} + ":", e); }`;
+    const run = rule.inject.when === "end"
+      ? `const __dmr_run = () => { ${body} };\nif (document.readyState === "complete") __dmr_run(); else window.addEventListener("load", __dmr_run, { once: true });`
+      : body;
+    return `(function () {\nif (!(${gate})) return;\n${run}\n})();`;
+  }
+
+  function matchPatterns(rule) {
+    const m = rule.match || {};
+    if (m.type !== "domain") return ["<all_urls>"];
+    const doms = String(m.value || "").split(/[\s,]+/).filter(Boolean);
+    return doms.flatMap(d => [`*://${d}/*`, `*://*.${d}/*`]);
+  }
+
+  async function syncUserScripts(state) {
+    const active = state.enabled
+      ? state.rules.filter(r => r.enabled && hasInject(r) && validateRule(r).length === 0)
+      : [];
+    const status = await userScriptsStatus();
+    if (!status.ok) return { ok: !active.length, count: 0, needed: active.length, reason: status.reason };
+    const us = chrome.userScripts;
+    const existing = (await us.getScripts()).filter(s => s.id.startsWith(US_PREFIX)).map(s => s.id);
+    if (existing.length) await us.unregister({ ids: existing });
+    const failed = [];
+    for (const r of active) {
+      try {
+        await us.register([{
+          id: US_PREFIX + r.id,
+          matches: matchPatterns(r),
+          js: [{ code: wrapUserCode(r) }],
+          runAt: r.inject.when === "end" ? "document_idle" : "document_start",
+          world: "MAIN",
+          allFrames: false
+        }]);
+      } catch (e) {
+        failed.push({ rule: r, error: e?.message || String(e) });
+      }
+    }
+    return { ok: !failed.length, count: active.length - failed.length, needed: active.length, failed };
+  }
+
+  // Registra los scripts que falten (p. ej. si el permiso se activó con el editor cerrado).
+  // Devuelve true si ha tenido que registrar algo.
+  async function ensureUserScripts(state) {
+    const active = state.enabled
+      ? state.rules.filter(r => r.enabled && hasInject(r) && validateRule(r).length === 0)
+      : [];
+    if (!active.length) return false;
+    const status = await userScriptsStatus();
+    if (!status.ok) return false;
+    const have = new Set((await chrome.userScripts.getScripts()).map(s => s.id));
+    if (active.every(r => have.has(US_PREFIX + r.id))) return false;
+    await syncUserScripts(state);
+    return true;
+  }
+
   async function apply(state) {
+    const res = await applyDnr(state);
+    let us;
+    try { us = await syncUserScripts(state); }
+    catch (e) { us = { ok: false, count: 0, needed: 1, failed: [], error: e?.message || String(e) }; }
+    res.scripts = us.count;
+    if (!us.ok) {
+      const msgs = [];
+      if (us.reason === "chrome-reload") msgs.push(`Hay ${us.needed} regla(s) de inyección sin aplicar: Chrome tiene cargada una versión antigua de la extensión, recárgala`);
+      else if (us.reason === "chrome-toggle") msgs.push(`Hay ${us.needed} regla(s) de inyección sin aplicar: activa «Permitir scripts de usuario» en los detalles de la extensión`);
+      else if (us.reason === "firefox-permission") msgs.push(`Hay ${us.needed} regla(s) de inyección sin aplicar: falta conceder el permiso de scripts de usuario`);
+      for (const f of us.failed || []) { msgs.push(`"${f.rule.name}": ${f.error}`); res.failed = [...(res.failed || []), f.rule.id]; }
+      if (us.error) msgs.push(us.error);
+      res.ok = false;
+      res.error = [res.error, ...msgs].filter(Boolean).join(" | ");
+    }
+    return res;
+  }
+
+  async function applyDnr(state) {
     const dnr = chrome.declarativeNetRequest;
     const groups = toDnrGroups(state);
     const skipped = state.enabled ? state.rules.filter(r => r.enabled && validateRule(r).length) : [];
@@ -301,6 +421,7 @@ const RT = (() => {
     if (nRes) parts.push(`${nRes} cab. respuesta`);
     if (nQp && !hasRedirect(rule)) parts.push(`${nQp} params`);
     if (hasRedirect(rule)) parts.unshift("redirige");
+    if (hasInject(rule)) parts.unshift(rule.inject.when === "end" ? "JS después de cargar" : "JS antes de cargar");
     return parts.join(" · ") || "sin acciones";
   }
 
@@ -356,7 +477,8 @@ const RT = (() => {
     const on = l => (l || []).filter(x => x.enabled !== false && String(x.name || x.key || "").trim());
     const hasHeaders = on(rule.requestHeaders).length + on(rule.responseHeaders).length > 0;
     const params = on(rule.queryParams);
-    if (!hasHeaders && !params.length && !redirects) return null;
+    const injects = hasInject(rule);
+    if (!hasHeaders && !params.length && !redirects && !injects) return null;
 
     // ¿Cambiarían los parámetros esta URL? (evita contar la URL ya redirigida)
     const paramsChange = url => {
@@ -371,6 +493,7 @@ const RT = (() => {
       const type = TYPE_ALIAS[rawType] || rawType;
       if (!types.has(type) || !test(url)) return false;
       if (hasHeaders) return true;
+      if (injects && type === "main_frame") return true;
       if (type === "websocket") return false;
       if (redirects) return true;
       return paramsChange(url);
@@ -473,6 +596,6 @@ const RT = (() => {
     exportJson, downloadJson, parseImport, relatedOf, setEnabled, relate, unrelate, enforceGroups,
     RESOURCE_TYPES, ALL_TYPES, newRule, normalizeRule, defaultState, load, save, apply, saveAndApply,
     validateRule, checkRegex, toDnrRules, toDnrGroups, hasHostPermission, requestHostPermission,
-    summarize, describeMatch, uid, hasRedirect, ruleKinds, compileState, urlFilterToRegex, STORAGE_KEY
+    summarize, describeMatch, uid, hasRedirect, hasInject, ruleKinds, userScriptsStatus, ensureUserScripts, compileState, urlFilterToRegex, STORAGE_KEY
   };
 })();

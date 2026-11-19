@@ -18,8 +18,9 @@
       </div>
     </div>
     <div class="new-btns">
-      <button id="addRuleBtn" class="primary">+ Nueva regla</button>
-      <button id="addRedirectBtn" class="redirect-btn" title="Crear una regla de redirección">↪ Nueva redirección</button>
+      <button id="addRuleBtn" class="primary full-row">+ Nueva regla</button>
+      <button id="addRedirectBtn" class="redirect-btn" title="Crear una regla de redirección">↪ Redirección</button>
+      <button id="addInjectBtn" class="inject-btn" title="Crear una regla que inyecta JavaScript en la página">&lt;/&gt; Inyectar JS</button>
     </div>
     <div class="io-btns">
       <button id="exportBtn" title="Descargar todas las reglas en un fichero JSON">⬇ Exportar JSON</button>
@@ -27,7 +28,7 @@
       <input type="file" id="importFile" accept="application/json,.json" class="hidden">
     </div>
     <div class="legend">
-      <span class="lg headers">Cabeceras</span><span class="lg redirect">Redirección</span><span class="lg params">Parámetros</span>
+      <span class="lg headers">Cabeceras</span><span class="lg redirect">Redirección</span><span class="lg params">Parámetros</span><span class="lg inject">Inyección JS</span>
     </div>
     <div id="ruleList" class="rule-list"></div>
     <details id="trashBox" class="trash" open>
@@ -169,6 +170,32 @@
         <p class="help">Añadir parámetros hace una redirección interna a la misma URL con los parámetros nuevos (en la página principal verás la URL cambiada).</p>
       </section>
 
+      <section class="card kind-inject" id="injectCard">
+        <div class="card-head">
+          <h3>6. Inyectar JavaScript en la página</h3>
+          <label class="switch" title="Activar inyección"><input type="checkbox" id="injectEnabled"><span></span></label>
+        </div>
+        <div id="usBanner" class="us-banner hidden">
+          <span id="usBannerText"></span>
+          <button type="button" id="usBannerBtn" class="primary"></button>
+        </div>
+        <div id="injectBody" class="inject-body">
+          <div class="inject-bar">
+            <div class="seg" role="radiogroup" aria-label="Cuándo se ejecuta">
+              <label><input type="radio" name="injectWhen" value="start"><span>⏮ Antes de cargar la página</span></label>
+              <label><input type="radio" name="injectWhen" value="end"><span>⏭ Después de cargar la página</span></label>
+            </div>
+            <div class="btns">
+              <span id="injectFileName" class="file-name"></span>
+              <button type="button" id="injectFileBtn" title="Cargar el código desde un fichero .js">📂 Cargar fichero .js</button>
+              <input type="file" id="injectFile" accept=".js,.mjs,text/javascript,application/javascript" class="hidden">
+            </div>
+          </div>
+          <div id="injectCode"></div>
+          <p id="injectWhenHelp" class="help"></p>
+        </div>
+      </section>
+
       <details class="card preview">
         <summary>Ver reglas generadas (declarativeNetRequest)</summary>
         <pre id="dnrPreview"></pre>
@@ -193,6 +220,7 @@
 </datalist>
 
 <script src="rules.js"></script>
+<script src="codeeditor.js"></script>
 <script src="options.js"></script>
 </body>
 </html>

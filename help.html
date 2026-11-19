@@ -20,6 +20,7 @@
     <a href="#cab-peticion" class="sub">Cabeceras de la petición</a>
     <a href="#cab-respuesta" class="sub">Cabeceras de la respuesta</a>
     <a href="#parametros" class="sub">Parámetros de la URL</a>
+    <a href="#inyectar" class="sub">&lt;/&gt; Inyectar JavaScript</a>
     <a href="#combinar" class="sub">Combinar acciones</a>
     <a href="#relacionadas">⇄ Reglas relacionadas</a>
     <a href="#orden">Orden y prioridad</a>
@@ -41,6 +42,7 @@
         <li><b>Añadir, cambiar o quitar cabeceras HTTP</b> de la petición, como <code>Authorization</code>, <code>Cookie</code> o <code>User-Agent</code>.</li>
         <li><b>Cambiar cabeceras de la respuesta</b>. Por ejemplo, abrir CORS o quitar la <code>Content-Security-Policy</code>.</li>
         <li><b>Añadir o quitar parámetros</b> en la URL, como <code>?debug=true</code> o los <code>utm_*</code>.</li>
+        <li><b>Inyectar tu propio JavaScript</b> en una página, antes o después de que cargue.</li>
       </ul>
       <p>Todo se organiza en <b>reglas</b> que puedes activar y desactivar con un clic.</p>
     </section>
@@ -50,7 +52,7 @@
       <ol>
         <li>Pulsa el icono de la extensión en la barra del navegador para abrir el <b>popup</b>.</li>
         <li>Pulsa <b>Abrir editor</b>. El editor es donde se crean y se configuran las reglas.</li>
-        <li>Crea una regla con <span class="btn-ex primary">+ Nueva regla</span> o <span class="btn-ex redirect">↪ Nueva redirección</span>.</li>
+        <li>Crea una regla con <span class="btn-ex primary">+ Nueva regla</span>, <span class="btn-ex redirect">↪ Redirección</span> o <span class="btn-ex inject">&lt;/&gt; Inyectar JS</span>.</li>
         <li>Rellénala. <b>Los cambios se guardan y se aplican al instante</b>, no hay botón de guardar. Abajo verás <span class="ok">✓ Guardado y aplicado</span>.</li>
         <li>Recarga la página donde quieres probarla.</li>
       </ol>
@@ -64,7 +66,7 @@
         <li><b>Nombre</b>: para reconocerla.</li>
         <li><b>Interruptor</b>: activa o desactiva la regla. Una regla desactivada se conserva, pero no hace nada.</li>
         <li><b>A qué peticiones se aplica</b>: el patrón de URL. Es obligatorio, salvo que elijas "Todas las URLs".</li>
-        <li><b>Las acciones</b>: qué se hace con las peticiones que cumplen el patrón (redirigir, cabeceras, parámetros). Una regla puede tener varias acciones a la vez.</li>
+        <li><b>Las acciones</b>: qué se hace con las peticiones que cumplen el patrón (redirigir, inyectar JS, cabeceras, parámetros). Una regla puede tener varias acciones a la vez.</li>
         <li>Opcionalmente, <b>⇄ Relacionadas</b>: otras reglas con las que se turna.</li>
       </ul>
       <p>En la parte de abajo del editor, <i>"Ver reglas generadas"</i> muestra el JSON exacto que se entrega al navegador. Es útil si algo no funciona como esperas.</p>
@@ -100,10 +102,11 @@
       <p>Según lo que haga, cada regla lleva un color en la lista del editor y en el popup:</p>
       <div class="kinds">
         <div class="kind redirect"><b>Rojo</b><span>Redirección</span></div>
+        <div class="kind inject"><b>Azul</b><span>Inyección de JavaScript</span></div>
         <div class="kind params"><b>Amarillo</b><span>Parámetros de URL</span></div>
         <div class="kind headers"><b>Verde</b><span>Cabeceras</span></div>
       </div>
-      <p>Si una regla hace varias cosas, la barra de color indica la más importante (redirección, luego parámetros, luego cabeceras) y debajo del nombre aparece una etiqueta por cada acción.</p>
+      <p>Si una regla hace varias cosas, la barra de color indica la más importante (redirección, luego inyección, luego parámetros, luego cabeceras) y debajo del nombre aparece una etiqueta por cada acción.</p>
 
       <h3 id="redireccion" class="k-redirect">↪ Redirección</h3>
       <p>Cambia una petición por otra URL. El navegador pide la URL de destino en lugar de la original, y la página no se entera.</p>
@@ -151,10 +154,44 @@
       </ul>
       <p>Para cambiar los parámetros, el navegador hace una pequeña redirección interna a la misma URL con los parámetros nuevos. En la página principal verás la URL cambiada en la barra de direcciones. Si la URL ya tiene los parámetros correctos, no hace nada, así que no se produce ningún bucle.</p>
 
+      <h3 id="inyectar" class="k-inject">&lt;/&gt; Inyectar JavaScript</h3>
+      <p>Ejecuta tu propio código JavaScript dentro de las páginas que cumplen el patrón, como si fuera parte de la web. Tiene acceso a todo lo que tiene la página: <code>window</code>, el DOM, sus variables y funciones…</p>
+      <div class="example inject-ex">
+        <div class="ex-title">Cómo se crea</div>
+        <ol>
+          <li>Pulsa <span class="btn-ex inject">&lt;/&gt; Inyectar JS</span>.</li>
+          <li>En <b>¿A qué peticiones se aplica?</b>, indica en qué páginas se ejecuta, por ejemplo el dominio <code>miweb.com</code>.</li>
+          <li>Elige <b>cuándo</b> se ejecuta: <b>⏮ Antes de cargar la página</b> o <b>⏭ Después de cargar la página</b>.</li>
+          <li>Escribe el código en el editor o pulsa <b>📂 Cargar fichero .js</b>. El contenido del fichero aparece en el editor y puedes retocarlo.</li>
+        </ol>
+      </div>
+      <table>
+        <thead><tr><th>Momento</th><th>Cuándo se ejecuta</th><th>Para qué sirve</th></tr></thead>
+        <tbody>
+          <tr><td><b>⏮ Antes de cargar</b></td><td>Nada más empezar a cargar la página, <b>antes que cualquier script de la web</b>. El <code>document.body</code> todavía no existe.</td><td>Sustituir o espiar funciones de la página (<code>window.fetch</code>, <code>XMLHttpRequest</code>, <code>console.log</code>), definir variables o <i>flags</i> que la web leerá al arrancar.</td></tr>
+          <tr><td><b>⏭ Después de cargar</b></td><td>Cuando la página ha terminado de cargar del todo (evento <code>load</code>).</td><td>Tocar el DOM: ocultar o cambiar elementos, añadir estilos, rellenar formularios, pulsar botones…</td></tr>
+        </tbody>
+      </table>
+      <h3>El editor de código</h3>
+      <ul>
+        <li>Colorea la sintaxis de JavaScript: palabras clave, cadenas, números, comentarios, funciones…</li>
+        <li><kbd>Tab</kbd> sangra con 2 espacios y <kbd>Shift</kbd>+<kbd>Tab</kbd> quita la sangría. <kbd>Enter</kbd> mantiene la sangría de la línea anterior.</li>
+        <li>Puedes hacerlo más alto arrastrando su esquina inferior derecha.</li>
+        <li>Si cargas un fichero, su nombre aparece junto al botón. El código queda guardado en la regla: si luego cambias el fichero en tu disco, vuelve a cargarlo.</li>
+      </ul>
+      <h3>A tener en cuenta</h3>
+      <ul>
+        <li>Tu código va dentro de su propio bloque, así que las <code>const</code>, <code>let</code> y <code>function</code> que declares no se ven desde la página. Para dejar algo accesible, asígnalo a <code>window</code>: <code>window.miFuncion = () =&gt; { … }</code>.</li>
+        <li>Si tu código lanza un error, no rompe la página. Verás en la consola <code>[dmena_request] Error en el código de «nombre de la regla»</code>.</li>
+        <li>Se ejecuta solo en la página principal de la pestaña, no dentro de los iframes.</li>
+        <li><b>Permiso necesario.</b> En <b>Chrome</b> hay que activar <b>«Permitir scripts de usuario»</b> en <code>chrome://extensions</code> → dmena_request → <i>Detalles</i>. En <b>Firefox</b> hay que conceder el permiso de scripts de usuario. Si falta, el editor muestra un aviso amarillo con un botón que te lleva al sitio exacto. Las demás reglas funcionan sin este permiso.</li>
+      </ul>
+
       <h3 id="combinar">Combinar acciones en una regla</h3>
       <ul>
         <li><b>Cabeceras + parámetros</b>: se aplican las dos cosas.</li>
         <li><b>Redirección + parámetros</b>: <b>manda la redirección</b> y los parámetros de esa regla se ignoran. El editor te lo avisa en la sección de parámetros.</li>
+        <li><b>Inyección + cualquier otra acción</b>: se aplican todas. El código se inyecta en las páginas que cumplen el patrón, y el resto de acciones actúan sobre las peticiones.</li>
         <li><b>Redirección + cabeceras</b>: las cabeceras solo se aplican si la URL de destino también cumple el patrón de la regla. Si necesitas cabeceras en el destino, crea otra regla para la URL de destino.</li>
       </ul>
     </section>
@@ -243,6 +280,8 @@
       <div class="recipes">
         <div class="recipe k-redirect-b"><h4>Probar mi JS en una web real</h4><p>↪ Nueva redirección · patrón: URL del <code>.js</code> de producción · cargar en su lugar: <code>http://localhost:3000/mi.js</code>. Si la web usa CSP, añade otra regla con "Quitar CSP".</p></div>
         <div class="recipe k-redirect-b"><h4>Cambiar de entorno con un clic</h4><p>Crea una redirección por entorno (local, pre, otra rama), relaciónalas entre sí y activa en cada momento la que quieras.</p></div>
+        <div class="recipe k-inject-b"><h4>Ver qué llamadas hace una web</h4><p>&lt;/&gt; Inyectar JS · <b>Antes de cargar</b> · <code>const f = window.fetch; window.fetch = (...a) =&gt; { console.log('fetch', a[0]); return f(...a); };</code></p></div>
+        <div class="recipe k-inject-b"><h4>Ocultar un banner molesto</h4><p>&lt;/&gt; Inyectar JS · <b>Después de cargar</b> · <code>document.querySelector('.cookie-banner')?.remove();</code></p></div>
         <div class="recipe k-headers-b"><h4>Token en las llamadas a una API</h4><p>Dominio: <code>api.miweb.com</code> · Tipos: XHR / fetch · Cabecera de petición: <i>Poner</i> <code>Authorization</code> = <code>Bearer …</code></p></div>
         <div class="recipe k-headers-b"><h4>Evitar errores de CORS en local</h4><p>Dominio de la API · Cabeceras de respuesta → plantilla <b>CORS abierto</b>.</p></div>
         <div class="recipe k-headers-b"><h4>Hacerte pasar por otro usuario o dispositivo</h4><p>Dos reglas relacionadas con distinta <code>Cookie</code> o <code>User-Agent</code>, y vas alternando entre ellas.</p></div>
@@ -262,6 +301,8 @@
         <dd>Tiene un error: falta el patrón, una cabecera no tiene nombre, la regex no es válida, el destino provocaría un bucle… El mensaje te dice qué falla. Mientras tenga errores, esa regla no se aplica, pero las demás sí.</dd>
         <dt>He cambiado la regla y no pasa nada</dt>
         <dd>Recarga la página: las reglas afectan a las peticiones nuevas. Si es un fichero que el navegador tiene en caché, haz una recarga forzada con <kbd>Ctrl</kbd>+<kbd>F5</kbd>. Revisa también que el interruptor general y el de la regla estén encendidos, y que no haya otra regla relacionada activa.</dd>
+        <dt>Mi código inyectado no se ejecuta</dt>
+        <dd>Comprueba que no salga el aviso amarillo de permiso en la sección <i>Inyectar JavaScript</i>. En Chrome, activa «Permitir scripts de usuario» en los detalles de la extensión y vuelve al editor. Revisa también que la URL de la página cumpla el patrón y mira en la consola si aparece un error de <code>[dmena_request]</code>. Si usas "Antes de cargar" y tocas <code>document.body</code>, fallará porque todavía no existe: cambia a "Después de cargar".</dd>
         <dt>No funciona en algunas páginas</dt>
         <dd>Las extensiones no pueden actuar en páginas internas (<code>chrome://</code>, <code>about:</code>) ni en las tiendas de extensiones.</dd>
         <dt>He actualizado la extensión y no veo los cambios</dt>
@@ -274,6 +315,7 @@
       <ul>
         <li>Usa <code>dmena_request-firefox.zip</code>, que lleva su propio manifest. Para instalarlo: <code>about:debugging</code> → <i>Este Firefox</i> → <b>Cargar complemento temporal…</b>.</li>
         <li>Firefox no concede automáticamente el permiso para acceder a los sitios. Si ves un aviso amarillo, pulsa <b>Conceder</b>.</li>
+        <li>Para inyectar JavaScript hace falta Firefox 136 o superior y conceder el permiso de scripts de usuario desde el aviso de la sección <i>Inyectar JavaScript</i>.</li>
         <li>El botón de importar del popup abre el editor, porque Firefox cierra el popup al abrir el selector de ficheros.</li>
       </ul>
     </section>
