@@ -1,20 +1,25 @@
 :root {
-  --bg: #f4f8f6;
+  --bg: #faf6fb;
   --panel: #ffffff;
-  --panel2: #eef4f1;
-  --border: #dbe5e0;
-  --text: #1f2d28;
-  --muted: #6f817a;
-  --accent: #2bb59a;
-  --accent2: #22a086;
-  --accent-dark: #17806a;
-  --accent-soft: #e3f6f0;
-  --ok: #2bb59a;
+  --panel2: #f5eef7;
+  --border: #ebdff0;
+  --text: #2b2030;
+  --muted: #75677b;
+  --accent: #c98dd8;
+  --accent2: #b876c9;
+  --accent-dark: #8a4a9c;
+  --accent-soft: #f6ebf9;
+  --ok: #c98dd8;
   --warn: #a86400;
   --danger: #d64545;
   --radius: 8px;
+  /* Colores por tipo de regla */
+  --k-headers: #2bb59a;  --k-headers-soft: #e3f6f0;
+  --k-redirect: #e57c76; --k-redirect-soft: #fdeceb;
+  --k-params: #e2b83b;   --k-params-soft: #fdf6dc;
+  --k-none: #c5d1cc;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
+  font-size: 14.5px;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -36,15 +41,15 @@ input[type=text], select, textarea {
   border-radius: 6px; padding: 6px 8px; width: 100%;
 }
 input[type=text]:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-input.mono, textarea.mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
+input.mono, textarea.mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13.5px; }
 .muted { color: var(--muted); }
-.small { font-size: 11px; }
+.small { font-size: 12.5px; }
 
 /* Interruptor */
 .switch { position: relative; display: inline-block; width: 34px; height: 18px; flex-shrink: 0; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .switch span {
-  position: absolute; inset: 0; background: #c9d6d0; border-radius: 18px; transition: .15s;
+  position: absolute; inset: 0; background: #dccfe1; border-radius: 18px; transition: .15s;
 }
 .switch span::before {
   content: ""; position: absolute; width: 14px; height: 14px; left: 2px; top: 2px;
@@ -58,7 +63,17 @@ input.mono, textarea.mono { font-family: ui-monospace, "Cascadia Code", Consolas
   border-radius: var(--radius); padding: 8px 10px; display: flex; gap: 8px; align-items: center;
   justify-content: space-between;
 }
-.status { font-size: 12px; min-height: 16px; }
+.status { font-size: 13.5px; min-height: 16px; }
 .status.ok { color: var(--accent-dark); }
 .status.err { color: var(--danger); }
 .hidden { display: none !important; }
+
+/* Etiquetas de tipo */
+.chip { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 6px; border-radius: 9px; margin-right: 4px; line-height: 15px; }
+.chip.headers { background: var(--k-headers-soft); color: #17806a; }
+.chip.redirect { background: var(--k-redirect-soft); color: #b9443d; }
+.chip.params { background: var(--k-params-soft); color: #8a6a07; }
+.kind-bar-headers { --kind: var(--k-headers); --kind-soft: var(--k-headers-soft); }
+.kind-bar-redirect { --kind: var(--k-redirect); --kind-soft: var(--k-redirect-soft); }
+.kind-bar-params { --kind: var(--k-params); --kind-soft: var(--k-params-soft); }
+.kind-bar-none { --kind: var(--k-none); --kind-soft: var(--panel2); }

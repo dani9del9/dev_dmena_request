@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>dmena_request — Editor de reglas</title>
-<link rel="icon" href="icons/mint32.png">
+<link rel="icon" href="icons/orchid32.png">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="options.css">
 </head>
@@ -11,16 +11,22 @@
 <div class="app">
   <aside>
     <div class="aside-head">
-      <div class="brand"><img src="icons/mint48.png" alt=""><h1>dmena_request</h1></div>
+      <div class="brand"><img src="icons/orchid48.png" alt=""><h1>dmena_request</h1></div>
       <label class="switch" title="Activar / desactivar todo"><input type="checkbox" id="globalToggle"><span></span></label>
     </div>
-    <button id="addRuleBtn" class="primary full">+ Nueva regla</button>
-    <div id="ruleList" class="rule-list"></div>
-    <div class="aside-foot">
-      <button id="exportBtn">Exportar</button>
-      <button id="importBtn">Importar</button>
+    <div class="new-btns">
+      <button id="addRuleBtn" class="primary">+ Nueva regla</button>
+      <button id="addRedirectBtn" class="redirect-btn" title="Crear una regla de redirección">↪ Nueva redirección</button>
+    </div>
+    <div class="io-btns">
+      <button id="exportBtn" title="Descargar todas las reglas en un fichero JSON">⬇ Exportar JSON</button>
+      <button id="importBtn" title="Cargar reglas desde un fichero JSON">⬆ Importar JSON</button>
       <input type="file" id="importFile" accept="application/json,.json" class="hidden">
     </div>
+    <div class="legend">
+      <span class="lg headers">Cabeceras</span><span class="lg redirect">Redirección</span><span class="lg params">Parámetros</span>
+    </div>
+    <div id="ruleList" class="rule-list"></div>
   </aside>
 
   <main>
@@ -62,9 +68,32 @@
         </details>
       </section>
 
-      <section class="card">
+      <section class="card kind-redirect">
         <div class="card-head">
-          <h3>2. Cabeceras de la petición <span class="muted small">(lo que se envía al servidor)</span></h3>
+          <h3>2. Redirigir a otra URL</h3>
+          <label class="switch" title="Activar redirección"><input type="checkbox" id="redirectEnabled"><span></span></label>
+        </div>
+        <div id="redirectBody">
+          <div class="redir-grid">
+            <label for="redirectUrl">Cargar en su lugar</label>
+            <input type="text" id="redirectUrl" class="mono" placeholder="https://otro-servidor.com/reels.min.js">
+          </div>
+          <details class="adv" id="adv">
+            <summary>Avanzado</summary>
+            <div class="row adv-row">
+              <span>Tipo de destino:</span>
+              <select id="redirectMode" class="w-auto">
+                <option value="url">URL fija</option>
+                <option value="regex">Sustitución regex (\1, \2…)</option>
+              </select>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="card kind-headers">
+        <div class="card-head">
+          <h3>3. Cabeceras de la petición <span class="muted small">(lo que se envía al servidor)</span></h3>
           <div class="btns">
             <select id="reqPreset" class="w-auto preset">
               <option value="">Plantilla…</option>
@@ -83,9 +112,9 @@
         <div id="reqHeaders" class="kv-list"></div>
       </section>
 
-      <section class="card">
+      <section class="card kind-headers">
         <div class="card-head">
-          <h3>3. Cabeceras de la respuesta <span class="muted small">(lo que recibe el navegador)</span></h3>
+          <h3>4. Cabeceras de la respuesta <span class="muted small">(lo que recibe el navegador)</span></h3>
           <div class="btns">
             <select id="resPreset" class="w-auto preset">
               <option value="">Plantilla…</option>
@@ -101,14 +130,15 @@
         <div id="resHeaders" class="kv-list"></div>
       </section>
 
-      <section class="card">
+      <section class="card kind-params" id="paramsCard">
         <div class="card-head">
-          <h3>4. Parámetros de la URL</h3>
+          <h3>5. Parámetros de la URL</h3>
           <div class="btns">
             <button type="button" id="addParam">+ Añadir / reemplazar</button>
             <button type="button" id="addRemoveParam">+ Quitar</button>
           </div>
         </div>
+        <p id="paramsDisabledNote" class="help warn-note hidden">Esta regla tiene una redirección activa: los parámetros no se aplican (la redirección manda).</p>
         <div id="params" class="kv-list"></div>
         <p class="help">Añadir parámetros hace una redirección interna a la misma URL con los parámetros nuevos (en la página principal verás la URL cambiada).</p>
       </section>

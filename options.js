@@ -2,6 +2,7 @@ let state;
 let selectedId = null;
 let lastFailed = [];
 let saveTimer = null;
+const autoNamed = new Set(); // reglas cuyo nombre se genera solo desde la URL
 
 const $ = id => document.getElementById(id);
 const el = (tag, props = {}, ...children) => {
@@ -25,6 +26,7 @@ const current = () => state.rules.find(r => r.id === selectedId);
 function setStatus(res) {
   const s = $("status");
   if (res === "saving") { s.textContent = "Guardando…"; s.className = "status"; return; }
+  if (res.ok && res.msg) { s.textContent = res.msg; s.className = "status ok"; return; }
   if (res.ok) { s.textContent = `✓ Guardado y aplicado — ${res.count} regla(s) del navegador activas${state.enabled ? "" : " (dmena_request desactivado)"}`; s.className = "status ok"; }
   else { s.textContent = "⚠ " + res.error; s.className = "status err"; }
 }
@@ -53,8 +55,9 @@ function renderList() {
   list.innerHTML = "";
   state.rules.forEach((rule, i) => {
     const hasErr = RT.validateRule(rule).length > 0 || lastFailed.includes(rule.id);
+    const kinds = RT.ruleKinds(rule);
     const item = el("div", {
-      className: "rule-item" + (rule.id === selectedId ? " active" : "") + (rule.enabled ? "" : " disabled") + (hasErr ? " has-error" : "")
+      className: "rule-item kind-bar-" + (kinds[0] || "none") + (rule.id === selectedId ? " active" : "") + (rule.enabled ? "" : " disabled") + (hasErr ? " has-error" : "")
     });
     const sw = el("label", { className: "switch", title: "Activar / desactivar" });
     const cb = el("input", { type: "checkbox", checked: rule.enabled });
@@ -67,7 +70,8 @@ function renderList() {
     });
     const info = el("div", { className: "ri-info" },
       el("div", { className: "ri-name", textContent: rule.name || "(sin nombre)" }),
-      el("div", { className: "ri-sub", textContent: `${RT.describeMatch(rule)} — ${RT.summarize(rule)}` })
+      el("div", { className: "ri-sub", textContent: `${RT.describeMatch(rule)} — ${RT.summarize(rule)}` }),
+      kindChips(kinds)
     );
     const up = el("button", { type: "button", textContent: "▲", title: "Subir (más prioridad)", disabled: i === 0 });
     const down = el("button", { type: "button", textContent: "▼", title: "Bajar", disabled: i === state.rules.length - 1 });
@@ -78,6 +82,13 @@ function renderList() {
     list.append(item);
   });
   if (!state.rules.length) list.append(el("p", { className: "muted small", textContent: "No hay reglas." }));
+}
+
+const KIND_LABEL = { headers: "Cabeceras", redirect: "Redirección", params: "Parámetros" };
+function kindChips(kinds) {
+  const box = el("div", { className: "ri-chips" });
+  kinds.forEach(k => box.append(el("span", { className: "chip " + k, textContent: KIND_LABEL[k] })));
+  return box;
 }
 
 function move(i, dir) {
@@ -111,8 +122,27 @@ function renderEditor() {
   renderHeaderList("reqHeaders", rule.requestHeaders, ["set", "remove"], "reqHeaderNames");
   renderHeaderList("resHeaders", rule.responseHeaders, ["set", "append", "remove"], "resHeaderNames");
   renderParams();
+  renderRedirect();
   renderErrors();
   renderPreview();
+}
+
+function renderRedirect() {
+  const rule = current();
+  const rd = rule.redirect;
+  $("redirectEnabled").checked = !!rd.enabled;
+  $("redirectMode").value = rd.mode || "url";
+  $("redirectUrl").value = rd.mode === "regex" ? (rd.regexSub || "") : (rd.url || "");
+  $("redirectUrl").placeholder = rd.mode === "regex" ? "https://otro-servidor.com/\\1.min.js" : "https://otro-servidor.com/reels.min.js";
+  if (rd.mode === "regex") $("adv").open = true;
+  $("redirectBody").classList.toggle("off", !rd.enabled);
+  updateParamsDim();
+}
+
+function updateParamsDim() {
+  const active = RT.hasRedirect(current());
+  $("paramsCard").classList.toggle("dimmed", active);
+  $("paramsDisabledNote").classList.toggle("hidden", !active);
 }
 
 function updateMatchUi() {
@@ -257,25 +287,24 @@ function applyPreset(selectEl, list, containerId, ops, datalistId) {
 }
 
 function exportRules() {
-  const blob = new Blob([JSON.stringify({ app: "dmena_request", version: 1, ...state }, null, 2)], { type: "application/json" });
-  const a = el("a", { href: URL.createObjectURL(blob), download: `dmena_request-reglas-${new Date().toISOString().slice(0, 10)}.json` });
-  document.body.append(a);
-  a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  RT.downloadJson(state);
+  setStatus({ ok: true, count: state.rules.length, msg: `⬇ Exportadas ${state.rules.length} regla(s) a JSON` });
 }
 
 async function importRules(file) {
   try {
-    const data = JSON.parse(await file.text());
-    const rules = Array.isArray(data) ? data : data.rules;
-    if (!Array.isArray(rules)) throw new Error("El archivo no contiene una lista de reglas.");
-    const replace = confirm(`Se van a importar ${rules.length} regla(s).\n\nAceptar = reemplazar las actuales\nCancelar = añadirlas a las actuales`);
-    const imported = rules.map(r => RT.normalizeRule({ ...r, id: RT.uid() }));
+    const imported = RT.parseImport(await file.text());
+    if (!imported.length) throw new Error("El fichero no tiene reglas.");
+    let replace = false;
+    if (state.rules.length) {
+      replace = confirm(`Se van a importar ${imported.length} regla(s) de «${file.name}».\n\nAceptar = REEMPLAZAR las ${state.rules.length} actuales\nCancelar = AÑADIRLAS a las actuales`);
+    }
     state.rules = replace ? imported : [...state.rules, ...imported];
-    selectedId = state.rules[0]?.id || null;
+    selectedId = imported[0]?.id || state.rules[0]?.id || null;
     renderList();
     renderEditor();
     await saveNow();
+    setStatus({ ok: true, count: imported.length, msg: `⬆ Importadas ${imported.length} regla(s) desde ${file.name}` });
   } catch (e) {
     setStatus({ ok: false, error: "Error al importar: " + e.message });
   }
@@ -288,10 +317,48 @@ async function init() {
   $("editor").addEventListener("submit", e => e.preventDefault());
   $("globalToggle").addEventListener("change", e => { state.enabled = e.target.checked; scheduleSave(); });
   $("addRuleBtn").addEventListener("click", () => addRule());
-  $("ruleName").addEventListener("input", e => { current().name = e.target.value; scheduleSave(); });
+  $("addRedirectBtn").addEventListener("click", () => {
+    addRule({ name: "Nueva redirección", match: { type: "url", value: "", resourceTypes: [] },
+      redirect: { enabled: true, mode: "url", url: "", regexSub: "" } });
+    $("matchValue").focus();
+  });
+  $("ruleName").addEventListener("input", e => { current().name = e.target.value; autoNamed.delete(current().id); scheduleSave(); });
   $("ruleEnabled").addEventListener("change", e => { current().enabled = e.target.checked; scheduleSave(); });
   $("matchType").addEventListener("change", e => { current().match.type = e.target.value; updateMatchUi(); scheduleSave(); });
-  $("matchValue").addEventListener("input", e => { current().match.value = e.target.value; scheduleSave(); });
+  $("matchValue").addEventListener("input", e => {
+    const rule = current();
+    rule.match.value = e.target.value;
+    // En reglas de redirección recién creadas, el nombre se genera solo con el fichero de la URL.
+    if (rule.redirect.enabled && (/^(Nueva regla|Nueva redirección)$/.test(rule.name) || autoNamed.has(rule.id))) {
+      const file = e.target.value.split(/[?#]/)[0].split("/").filter(Boolean).pop();
+      if (file) { rule.name = "Redirigir " + file; $("ruleName").value = rule.name; autoNamed.add(rule.id); }
+    }
+    scheduleSave();
+  });
+
+  $("redirectEnabled").addEventListener("change", e => {
+    const rd = current().redirect;
+    rd.enabled = e.target.checked;
+    if (rd.enabled) setTimeout(() => $("redirectUrl").focus(), 0);
+    renderRedirect(); scheduleSave();
+  });
+  $("redirectMode").addEventListener("change", e => {
+    const rd = current().redirect;
+    rd.mode = e.target.value;
+    if (rd.mode === "regex" && current().match.type !== "regex") {
+      current().match.type = "regex";
+      $("matchType").value = "regex";
+      updateMatchUi();
+    }
+    renderRedirect(); scheduleSave();
+  });
+  $("redirectUrl").addEventListener("input", e => {
+    const rd = current().redirect;
+    if (rd.mode === "regex") rd.regexSub = e.target.value; else rd.url = e.target.value;
+    if (!rd.enabled && e.target.value.trim()) { rd.enabled = true; $("redirectEnabled").checked = true; $("redirectBody").classList.remove("off"); }
+    updateParamsDim();
+    scheduleSave();
+  });
 
   $("addReqHeader").addEventListener("click", () => {
     current().requestHeaders.push({ enabled: true, op: "set", name: "", value: "" });
@@ -336,6 +403,13 @@ async function init() {
 
   $("exportBtn").addEventListener("click", exportRules);
   $("importBtn").addEventListener("click", () => $("importFile").click());
+  // Arrastrar un .json sobre el editor también importa.
+  document.addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("dropping"); });
+  document.addEventListener("dragleave", e => { if (!e.relatedTarget) document.body.classList.remove("dropping"); });
+  document.addEventListener("drop", e => {
+    e.preventDefault(); document.body.classList.remove("dropping");
+    const f = e.dataTransfer?.files?.[0]; if (f) importRules(f);
+  });
   $("importFile").addEventListener("change", e => { const f = e.target.files[0]; if (f) importRules(f); e.target.value = ""; });
 
   // Permisos (Firefox pide al usuario conceder acceso a los sitios)
@@ -355,6 +429,10 @@ async function init() {
   });
 
   const params = new URLSearchParams(location.search);
+  if (params.get("import")) {
+    $("importBtn").classList.add("pulse");
+    setTimeout(() => setStatus({ ok: true, msg: "Pulsa «⬆ Importar JSON» o arrastra aquí el fichero .json" }), 300);
+  }
   if (params.get("newFor")) {
     const host = params.get("newFor").replace(/^www\./, "");
     addRule({ name: host, match: { type: "domain", value: host, resourceTypes: [] } });

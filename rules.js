@@ -39,6 +39,7 @@ const RT = (() => {
       queryParams: [],
       requestHeaders: [],
       responseHeaders: [],
+      redirect: { enabled: false, mode: "url", url: "", regexSub: "" },
       ...partial
     };
   }
@@ -50,6 +51,7 @@ const RT = (() => {
     if (!Array.isArray(out.requestHeaders)) out.requestHeaders = [];
     if (!Array.isArray(out.responseHeaders)) out.responseHeaders = [];
     if (!Array.isArray(out.match.resourceTypes)) out.match.resourceTypes = [];
+    out.redirect = { ...base.redirect, ...(r.redirect || {}) };
     if (!out.id) out.id = uid();
     return out;
   }
@@ -68,6 +70,23 @@ const RT = (() => {
 
   async function save(state) {
     await chrome.storage.local.set({ [STORAGE_KEY]: state });
+  }
+
+  // ¿La regla tiene una redirección activa y con destino?
+  function hasRedirect(r) {
+    const rd = r.redirect || {};
+    if (!rd.enabled) return false;
+    return rd.mode === "regex" ? !!String(rd.regexSub || "").trim() : !!String(rd.url || "").trim();
+  }
+
+  // Qué hace la regla (para colores y etiquetas). Orden: redirección, parámetros, cabeceras.
+  function ruleKinds(r) {
+    const on = l => (l || []).some(x => x.enabled !== false && String(x.name || x.key || "").trim());
+    const kinds = [];
+    if (hasRedirect(r)) kinds.push("redirect");
+    if (on(r.queryParams)) kinds.push("params");
+    if (on(r.requestHeaders) || on(r.responseHeaders)) kinds.push("headers");
+    return kinds;
   }
 
   // ---------- Validación ----------
@@ -90,6 +109,27 @@ const RT = (() => {
     checkHeaders(r.responseHeaders, "respuesta");
     for (const p of r.queryParams || []) {
       if (p.enabled !== false && !String(p.key || "").trim()) errors.push("Parámetro de URL sin nombre.");
+    }
+    const rd = r.redirect || {};
+    if (rd.enabled) {
+      if (rd.mode === "regex") {
+        if (m.type !== "regex") errors.push("La redirección con sustitución regex necesita que el patrón sea de tipo «Expresión regular».");
+        else if (!String(rd.regexSub || "").trim()) errors.push("Falta la URL de destino de la redirección.");
+      } else {
+        const target = String(rd.url || "").trim();
+        if (!target) errors.push("Falta la URL de destino de la redirección.");
+        else {
+          let u = null;
+          try { u = new URL(target); } catch {}
+          if (!u || !/^(https?|data|chrome-extension|moz-extension):$/.test(u.protocol)) {
+            errors.push("La URL de destino debe ser absoluta (https://…).");
+          } else {
+            // Evitar bucles: si el destino vuelve a cumplir el patrón, se redirigiría sin fin.
+            const fn = buildUrlTest(m);
+            if (fn && fn(target)) errors.push("El destino cumple también el patrón de la regla: provocaría un bucle de redirecciones. Haz el patrón más concreto.");
+          }
+        }
+      }
     }
     return errors;
   }
@@ -152,6 +192,16 @@ const RT = (() => {
           if (res.length) action.responseHeaders = res;
           out.push({ id: nextId++, priority, action, condition });
         }
+      }
+      if (hasRedirect(rule)) {
+        const condition = buildCondition(rule, true);
+        if (condition) {
+          const rd = rule.redirect;
+          const redirect = rd.mode === "regex" ? { regexSubstitution: rd.regexSub.trim() } : { url: rd.url.trim() };
+          // La redirección manda: los parámetros de esta regla no se aplican.
+          out.push({ id: nextId++, priority: priority + 0, action: { type: "redirect", redirect }, condition });
+        }
+        return;
       }
       const qp = (rule.queryParams || []).filter(p => p.enabled !== false && String(p.key || "").trim());
       const add = qp.filter(p => p.op !== "remove")
@@ -244,7 +294,8 @@ const RT = (() => {
     const nReq = on(rule.requestHeaders), nRes = on(rule.responseHeaders), nQp = on(rule.queryParams);
     if (nReq) parts.push(`${nReq} cab. petición`);
     if (nRes) parts.push(`${nRes} cab. respuesta`);
-    if (nQp) parts.push(`${nQp} params`);
+    if (nQp && !hasRedirect(rule)) parts.push(`${nQp} params`);
+    if (hasRedirect(rule)) parts.unshift("redirige");
     return parts.join(" · ") || "sin acciones";
   }
 
@@ -276,24 +327,31 @@ const RT = (() => {
   }
 
   // Devuelve una función (url, type) => bool, o null si la regla no hace nada.
+  // Función url => bool según el patrón de la regla (null si el patrón no es válido).
+  function buildUrlTest(m) {
+    const value = String(m.value || "").trim();
+    try {
+      if (m.type === "url") { const re = urlFilterToRegex(value); return u => re.test(u); }
+      if (m.type === "regex") { const re = new RegExp(value, "i"); return u => re.test(u); }
+      if (m.type === "domain") {
+        const doms = value.split(/[\s,]+/).filter(Boolean).map(d => d.toLowerCase());
+        return u => { let h; try { h = new URL(u).hostname; } catch { return false; } return doms.some(d => h === d || h.endsWith("." + d)); };
+      }
+      return () => true;
+    } catch { return null; }
+  }
+
   function compileMatcher(rule) {
     const m = rule.match || {};
     const types = new Set(m.resourceTypes?.length ? m.resourceTypes : ALL_TYPES);
-    const value = String(m.value || "").trim();
-    let test;
-    try {
-      if (m.type === "url") { const re = urlFilterToRegex(value); test = u => re.test(u); }
-      else if (m.type === "regex") { const re = new RegExp(value, "i"); test = u => re.test(u); }
-      else if (m.type === "domain") {
-        const doms = value.split(/[\s,]+/).filter(Boolean).map(d => d.toLowerCase());
-        test = u => { let h; try { h = new URL(u).hostname; } catch { return false; } return doms.some(d => h === d || h.endsWith("." + d)); };
-      } else test = () => true;
-    } catch { return null; }
+    const test = buildUrlTest(m);
+    if (!test) return null;
+    const redirects = hasRedirect(rule);
 
     const on = l => (l || []).filter(x => x.enabled !== false && String(x.name || x.key || "").trim());
     const hasHeaders = on(rule.requestHeaders).length + on(rule.responseHeaders).length > 0;
     const params = on(rule.queryParams);
-    if (!hasHeaders && !params.length) return null;
+    if (!hasHeaders && !params.length && !redirects) return null;
 
     // ¿Cambiarían los parámetros esta URL? (evita contar la URL ya redirigida)
     const paramsChange = url => {
@@ -308,7 +366,9 @@ const RT = (() => {
       const type = TYPE_ALIAS[rawType] || rawType;
       if (!types.has(type) || !test(url)) return false;
       if (hasHeaders) return true;
-      return type !== "websocket" && paramsChange(url);
+      if (type === "websocket") return false;
+      if (redirects) return true;
+      return paramsChange(url);
     };
   }
 
@@ -320,9 +380,38 @@ const RT = (() => {
       .filter(x => x.fn);
   }
 
+  // ---------- Exportar / importar ----------
+  function exportJson(state) {
+    return JSON.stringify({ app: "dmena_request", version: 2, exportedAt: new Date().toISOString(), enabled: state.enabled, rules: state.rules }, null, 2);
+  }
+
+  function exportFileName() {
+    return `dmena_request-reglas-${new Date().toISOString().slice(0, 10)}.json`;
+  }
+
+  function downloadJson(state) {
+    const blob = new Blob([exportJson(state)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = exportFileName();
+    document.body.append(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  // Devuelve las reglas del JSON (normalizadas y con id nuevo). Lanza error si no es válido.
+  function parseImport(text) {
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error("El fichero no es un JSON válido."); }
+    const rules = Array.isArray(data) ? data : data?.rules;
+    if (!Array.isArray(rules)) throw new Error("El JSON no contiene una lista de reglas.");
+    return rules.filter(r => r && typeof r === "object").map(r => normalizeRule({ ...r, id: uid() }));
+  }
+
   return {
+    exportJson, downloadJson, parseImport,
     RESOURCE_TYPES, ALL_TYPES, newRule, normalizeRule, defaultState, load, save, apply, saveAndApply,
     validateRule, checkRegex, toDnrRules, toDnrGroups, hasHostPermission, requestHostPermission,
-    summarize, describeMatch, uid, compileState, urlFilterToRegex, STORAGE_KEY
+    summarize, describeMatch, uid, hasRedirect, ruleKinds, compileState, urlFilterToRegex, STORAGE_KEY
   };
 })();

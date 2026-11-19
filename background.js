@@ -37,7 +37,7 @@ async function drawIcon(variant) {
   if (iconCache[variant]) return iconCache[variant];
   const out = {};
   for (const size of ICON_SIZES) {
-    const blob = await (await fetch(chrome.runtime.getURL(`icons/mint${size}.png`))).blob();
+    const blob = await (await fetch(chrome.runtime.getURL(`icons/orchid${size}.png`))).blob();
     const bmp = await createImageBitmap(blob);
     const c = new OffscreenCanvas(size, size);
     const ctx = c.getContext("2d");

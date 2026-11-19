@@ -25,6 +25,7 @@ function renderSummary() {
 function setStatus(res) {
   const el = $("status");
   if (!res) { el.textContent = ""; el.className = "status"; return; }
+  if (res.ok && res.msg) { el.textContent = res.msg; el.className = "status ok"; return; }
   if (res.ok) { el.textContent = `✓ ${res.count} regla(s) del navegador activas`; el.className = "status ok"; }
   else { el.textContent = "Error: " + res.error; el.className = "status err"; }
 }
@@ -42,7 +43,8 @@ function render() {
   for (const rule of state.rules) {
     const row = document.createElement("div");
     const hits = tabStats.rules?.[rule.id] || 0;
-    row.className = "rule" + (hits && state.enabled && rule.enabled ? " match" : "");
+    const kinds = RT.ruleKinds(rule);
+    row.className = "rule kind-bar-" + (kinds[0] || "none") + (hits && state.enabled && rule.enabled ? " match" : "");
     row.title = "Editar regla";
     const info = document.createElement("div");
     info.className = "info";
@@ -104,6 +106,44 @@ async function init() {
   });
 
   $("openEditorBtn").addEventListener("click", () => openEditor());
+
+  // Exportar / importar
+  $("exportBtn").addEventListener("click", () => {
+    RT.downloadJson(state);
+    setStatus({ ok: true, msg: `⬇ Exportadas ${state.rules.length} regla(s)` });
+  });
+  // En Firefox el popup se cierra al abrir el selector de ficheros: se importa desde el editor.
+  const isFirefox = navigator.userAgent.includes("Firefox");
+  $("importBtn").addEventListener("click", () => isFirefox ? openEditor({ import: "1" }) : $("importFile").click());
+  let pending = null;
+  const finishImport = async replace => {
+    if (!pending) return;
+    state.rules = replace ? pending : [...state.rules, ...pending];
+    const n = pending.length;
+    pending = null;
+    $("importAsk").classList.add("hidden");
+    render();
+    const res = await RT.saveAndApply(state);
+    setStatus(res.ok ? { ok: true, msg: `⬆ Importadas ${n} regla(s)` } : res);
+  };
+  $("importFile").addEventListener("change", async e => {
+    const f = e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    try {
+      pending = RT.parseImport(await f.text());
+      if (!pending.length) throw new Error("El fichero no tiene reglas.");
+      if (!state.rules.length) return finishImport(true);
+      $("importAskText").textContent = `${pending.length} regla(s) en «${f.name}». ¿Reemplazar las ${state.rules.length} actuales o añadirlas?`;
+      $("importAsk").classList.remove("hidden");
+    } catch (err) {
+      pending = null;
+      setStatus({ ok: false, error: err.message });
+    }
+  });
+  $("impReplace").addEventListener("click", () => finishImport(true));
+  $("impAppend").addEventListener("click", () => finishImport(false));
+  $("impCancel").addEventListener("click", () => { pending = null; $("importAsk").classList.add("hidden"); });
   $("newHereBtn").addEventListener("click", () => openEditor(currentHost ? { newFor: currentHost } : { new: "1" }));
 }
 

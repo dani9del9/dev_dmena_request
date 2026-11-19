@@ -4,9 +4,12 @@ Extensión para Chrome y Firefox, al estilo de Requestly:
 
 - **Cabeceras de la petición**: poner o quitar (Authorization, Cookie, User-Agent, Origin, cabeceras propias…).
 - **Cabeceras de la respuesta**: poner, agregar o quitar (CORS abierto, quitar CSP o X-Frame-Options…).
+- **Redirecciones**: cambia una petición por otra URL. Por ejemplo, que `loquesea.com/libreria.js` se cargue desde `otracosa.com/libreria.lib.js`. Puede ser una URL fija o una sustitución con grupos de regex (`\1`, `\2`…). Avisa si el destino provocaría un bucle.
 - **Parámetros de URL**: añadir, reemplazar o quitar parámetros de la query.
 - Reglas por **dominio**, por **URL con comodín** o por **regex**, filtradas por tipo de recurso.
-- Interruptor general, interruptor por regla y por línea, prioridad (▲▼), duplicar, exportar e importar en JSON.
+- **Colores por tipo** en el listado: verde = cabeceras, rojo pastel = redirección, amarillo pastel = parámetros. Si una regla hace varias cosas, aparece una etiqueta por cada una.
+- **Exportar e importar reglas en JSON**: botones en el popup y arriba en el editor. En el editor también puedes arrastrar el .json a la ventana. Al importar te pregunta si quieres reemplazar las reglas actuales o añadirlas.
+- Interruptor general, interruptor por regla y por línea, prioridad (▲▼) y duplicar.
 - **Aviso en el icono**: aparece un punto color tomato en la esquina cuando dmena_request ha modificado alguna petición en la pestaña (se quita al navegar a una página donde no actúa). Con la extensión apagada el icono se ve gris. En el popup ves el total y cuántas peticiones ha tocado cada regla.
 - Usa `declarativeNetRequest` (Manifest V3), así que no hace falta un script de fondo y las reglas siguen activas después de reiniciar el navegador.
 
@@ -37,6 +40,15 @@ Extensión para Chrome y Firefox, al estilo de Requestly:
 | Dominio(s) | `miweb.com, localhost` | Incluye los subdominios |
 | URL contiene / comodín | `\|\|miweb.com/api/*` | `*` comodín, `\|\|` dominio, `\|` inicio/fin |
 | Regex | `^https://(dev\|pre)\.miweb\.com/.*` | Sintaxis RE2 |
+
+### Redirecciones
+1. Pulsa **↪ Nueva redirección**.
+2. En el paso **1**, pon la URL original. Ej: `https://player.prisamedia.com/componentes/reels/reels.min.js`. También vale un trozo o un comodín, como `*/reels.min.js`.
+3. En el paso **2**, en **Cargar en su lugar**, pon la URL que quieres que se cargue.
+
+- **Avanzado → Sustitución regex**: el origen es una expresión regular y el destino puede usar sus grupos. Ej: `^https://loquesea\.com/(.*)\.js$` → `https://otracosa.com/\1.lib.js`.
+- Si la regla tiene la redirección activa, sus parámetros de URL no se aplican, porque manda la redirección.
+- Si la consola muestra un error de **CSP** al cargar el script redirigido, añade en esa web una regla con la plantilla de respuesta *"Quitar CSP y X-Frame-Options"*.
 
 ### Sobre el contador del popup
 Cuenta toda petición de la pestaña que coincide con una regla activa: la página, los fetch/XHR, los scripts, las imágenes e incluso el `favicon.ico`. Si quieres que solo cuente las llamadas a la API, limita la regla a "XHR / fetch" en *Tipos de recurso*. Las peticiones redirigidas por los parámetros solo se cuentan una vez.
