@@ -118,6 +118,10 @@ async function init() {
   let pending = null;
   const finishImport = async replace => {
     if (!pending) return;
+    if (replace) {
+      const now = Date.now();
+      state.trash = [...state.rules.map((rule, index) => ({ rule, deletedAt: now, index })), ...(state.trash || [])];
+    }
     state.rules = replace ? pending : [...state.rules, ...pending];
     const n = pending.length;
     pending = null;
@@ -134,7 +138,7 @@ async function init() {
       pending = RT.parseImport(await f.text());
       if (!pending.length) throw new Error("El fichero no tiene reglas.");
       if (!state.rules.length) return finishImport(true);
-      $("importAskText").textContent = `${pending.length} regla(s) en «${f.name}». ¿Reemplazar las ${state.rules.length} actuales o añadirlas?`;
+      $("importAskText").textContent = `${pending.length} regla(s) en «${f.name}». ¿Reemplazar las ${state.rules.length} actuales (irán a la papelera) o añadirlas?`;
       $("importAsk").classList.remove("hidden");
     } catch (err) {
       pending = null;

@@ -20,7 +20,10 @@ const MATCH_HELP = {
 };
 const MATCH_PH = { all: "", domain: "miweb.com, api.miweb.com", url: "||miweb.com/api/*", regex: "^https://.*\\.miweb\\.com/.*" };
 
-const current = () => state.rules.find(r => r.id === selectedId);
+let viewTrashId = null; // regla de la papelera que se está viendo (solo lectura)
+const current = () => viewTrashId
+  ? state.trash.find(t => t.rule.id === viewTrashId)?.rule
+  : state.rules.find(r => r.id === selectedId);
 
 // ---------------- Guardado ----------------
 function setStatus(res) {
@@ -73,15 +76,133 @@ function renderList() {
       el("div", { className: "ri-sub", textContent: `${RT.describeMatch(rule)} — ${RT.summarize(rule)}` }),
       kindChips(kinds)
     );
-    const up = el("button", { type: "button", textContent: "▲", title: "Subir (más prioridad)", disabled: i === 0 });
-    const down = el("button", { type: "button", textContent: "▼", title: "Bajar", disabled: i === state.rules.length - 1 });
-    up.addEventListener("click", e => { e.stopPropagation(); move(i, -1); });
-    down.addEventListener("click", e => { e.stopPropagation(); move(i, 1); });
-    item.append(sw, info, el("div", { className: "ri-move" }, up, down));
+    const grip = el("div", { className: "ri-grip", textContent: "⋮⋮", title: "Arrastra para cambiar el orden (arriba = más prioridad)" });
+    item.append(grip, sw, info);
     item.addEventListener("click", () => select(rule.id));
+    makeDraggable(item, rule.id);
     list.append(item);
   });
   if (!state.rules.length) list.append(el("p", { className: "muted small", textContent: "No hay reglas." }));
+  renderTrash();
+}
+
+// ---------------- Arrastrar para ordenar ----------------
+let dragId = null;
+
+function clearDropMarks() {
+  document.querySelectorAll(".drop-before, .drop-after, .dragging, .trash-hover")
+    .forEach(n => n.classList.remove("drop-before", "drop-after", "dragging", "trash-hover"));
+}
+
+function makeDraggable(item, id) {
+  item.draggable = true;
+  item.addEventListener("dragstart", e => {
+    dragId = id;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("application/x-dmena-rule", id);
+    requestAnimationFrame(() => item.classList.add("dragging"));
+  });
+  item.addEventListener("dragend", () => { dragId = null; clearDropMarks(); });
+  item.addEventListener("dragover", e => {
+    if (!dragId || dragId === id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const r = item.getBoundingClientRect();
+    const after = e.clientY > r.top + r.height / 2;
+    item.classList.toggle("drop-after", after);
+    item.classList.toggle("drop-before", !after);
+  });
+  item.addEventListener("dragleave", () => item.classList.remove("drop-before", "drop-after"));
+  item.addEventListener("drop", e => {
+    if (!dragId || dragId === id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const after = item.classList.contains("drop-after");
+    const from = state.rules.findIndex(r => r.id === dragId);
+    const [moved] = state.rules.splice(from, 1);
+    let to = state.rules.findIndex(r => r.id === id);
+    if (after) to++;
+    state.rules.splice(to, 0, moved);
+    dragId = null;
+    clearDropMarks();
+    renderList();
+    scheduleSave();
+  });
+}
+
+// ---------------- Papelera ----------------
+function timeAgo(ts) {
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 60) return "hace un momento";
+  const m = Math.round(s / 60);
+  if (m < 60) return `hace ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24);
+  return d === 1 ? "hace 1 día" : `hace ${d} días`;
+}
+
+function moveToTrash(id) {
+  const idx = state.rules.findIndex(r => r.id === id);
+  if (idx < 0) return;
+  const [rule] = state.rules.splice(idx, 1);
+  state.trash.unshift({ rule, deletedAt: Date.now(), index: idx });
+  autoNamed.delete(id);
+  if (selectedId === id) select(state.rules[Math.min(idx, state.rules.length - 1)]?.id || null);
+  else renderList();
+  scheduleSave();
+  $("trashBox").open = true;
+}
+
+function restoreFromTrash(i) {
+  const [t] = state.trash.splice(i, 1);
+  const at = Math.min(Math.max(t.index ?? state.rules.length, 0), state.rules.length);
+  state.rules.splice(at, 0, t.rule);
+  select(t.rule.id);
+  scheduleSave();
+}
+
+function deleteFromTrash(i) {
+  const t = state.trash[i];
+  if (!confirm(`¿Borrar definitivamente «${t.rule.name}»? No se puede deshacer.`)) return;
+  state.trash.splice(i, 1);
+  if (viewTrashId === t.rule.id) { viewTrashId = null; renderEditor(); }
+  renderTrash();
+  scheduleSave();
+}
+
+function emptyTrash() {
+  if (!state.trash.length) return;
+  if (!confirm(`¿Vaciar la papelera? Se borrarán definitivamente ${state.trash.length} regla(s).`)) return;
+  state.trash = [];
+  if (viewTrashId) { viewTrashId = null; renderEditor(); }
+  renderTrash();
+  scheduleSave();
+}
+
+function renderTrash() {
+  const box = $("trashList");
+  box.innerHTML = "";
+  $("trashCount").textContent = state.trash.length;
+  $("emptyTrashBtn").disabled = !state.trash.length;
+  if (!state.trash.length) {
+    box.append(el("p", { className: "trash-empty", textContent: "Vacía. Arrastra aquí una regla para borrarla." }));
+    return;
+  }
+  state.trash.forEach((t, i) => {
+    const kinds = RT.ruleKinds(t.rule);
+    const restore = el("button", { type: "button", className: "small-btn", textContent: "↺ Restaurar", title: "Volver a poner la regla en la lista" });
+    const del = el("button", { type: "button", className: "small-btn danger", textContent: "✕", title: "Borrar definitivamente" });
+    restore.addEventListener("click", e => { e.stopPropagation(); restoreFromTrash(i); });
+    del.addEventListener("click", e => { e.stopPropagation(); deleteFromTrash(i); });
+    const row = el("div", { className: "trash-item kind-bar-" + (kinds[0] || "none") + (t.rule.id === viewTrashId ? " active" : ""), title: "Ver la regla" },
+      el("div", { className: "ri-info" },
+        el("div", { className: "ti-name", textContent: t.rule.name || "(sin nombre)" }),
+        el("div", { className: "ri-sub", textContent: `${RT.describeMatch(t.rule)} · ${timeAgo(t.deletedAt)}` })),
+      restore, del);
+    row.addEventListener("click", () => selectTrash(t.rule.id));
+    box.append(row);
+  });
 }
 
 const KIND_LABEL = { headers: "Cabeceras", redirect: "Redirección", params: "Parámetros" };
@@ -91,15 +212,10 @@ function kindChips(kinds) {
   return box;
 }
 
-function move(i, dir) {
-  const j = i + dir;
-  [state.rules[i], state.rules[j]] = [state.rules[j], state.rules[i]];
-  scheduleSave();
-  renderList();
-}
 
 function select(id) {
   selectedId = id;
+  viewTrashId = null;
   const url = new URL(location.href);
   url.search = id ? "?rule=" + id : "";
   history.replaceState(null, "", url);
@@ -108,11 +224,26 @@ function select(id) {
 }
 
 // ---------------- Editor ----------------
+function selectTrash(id) {
+  viewTrashId = id;
+  selectedId = null;
+  history.replaceState(null, "", location.pathname);
+  renderList();
+  renderEditor();
+}
+
 function renderEditor() {
   const rule = current();
   $("editor").classList.toggle("hidden", !rule);
   $("emptyState").classList.toggle("hidden", !!rule);
   if (!rule) return;
+  const inTrash = !!viewTrashId;
+  $("editorFields").disabled = inTrash;
+  $("trashBanner").classList.toggle("hidden", !inTrash);
+  if (inTrash) {
+    const t = state.trash.find(x => x.rule.id === viewTrashId);
+    $("trashBannerWhen").textContent = "(eliminada " + timeAgo(t.deletedAt) + ")";
+  }
   $("ruleName").value = rule.name;
   $("ruleEnabled").checked = rule.enabled;
   $("matchType").value = rule.match.type;
@@ -297,7 +428,11 @@ async function importRules(file) {
     if (!imported.length) throw new Error("El fichero no tiene reglas.");
     let replace = false;
     if (state.rules.length) {
-      replace = confirm(`Se van a importar ${imported.length} regla(s) de «${file.name}».\n\nAceptar = REEMPLAZAR las ${state.rules.length} actuales\nCancelar = AÑADIRLAS a las actuales`);
+      replace = confirm(`Se van a importar ${imported.length} regla(s) de «${file.name}».\n\nAceptar = REEMPLAZAR las ${state.rules.length} actuales (irán a la papelera)\nCancelar = AÑADIRLAS a las actuales`);
+    }
+    if (replace) {
+      const now = Date.now();
+      state.trash = [...state.rules.map((rule, index) => ({ rule, deletedAt: now, index })), ...(state.trash || [])];
     }
     state.rules = replace ? imported : [...state.rules, ...imported];
     selectedId = imported[0]?.id || state.rules[0]?.id || null;
@@ -392,21 +527,30 @@ async function init() {
     select(copy.id);
     scheduleSave();
   });
-  $("delRuleBtn").addEventListener("click", () => {
-    const rule = current();
-    if (!confirm(`¿Eliminar la regla "${rule.name}"?`)) return;
-    const idx = state.rules.indexOf(rule);
-    state.rules.splice(idx, 1);
-    select(state.rules[Math.min(idx, state.rules.length - 1)]?.id || null);
-    scheduleSave();
+  $("delRuleBtn").addEventListener("click", () => moveToTrash(selectedId));
+  const trashIdx = () => state.trash.findIndex(t => t.rule.id === viewTrashId);
+  $("bannerRestore").addEventListener("click", () => { const i = trashIdx(); if (i >= 0) restoreFromTrash(i); });
+  $("bannerDelete").addEventListener("click", () => { const i = trashIdx(); if (i >= 0) deleteFromTrash(i); });
+  $("emptyTrashBtn").addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); emptyTrash(); });
+  // Soltar una regla sobre la papelera la borra.
+  const trashBox = $("trashBox");
+  trashBox.addEventListener("dragover", e => { if (!dragId) return; e.preventDefault(); trashBox.classList.add("trash-hover"); });
+  trashBox.addEventListener("dragleave", e => { if (!trashBox.contains(e.relatedTarget)) trashBox.classList.remove("trash-hover"); });
+  trashBox.addEventListener("drop", e => {
+    if (!dragId) return;
+    e.preventDefault();
+    const id = dragId; dragId = null; clearDropMarks();
+    moveToTrash(id);
   });
 
   $("exportBtn").addEventListener("click", exportRules);
   $("importBtn").addEventListener("click", () => $("importFile").click());
   // Arrastrar un .json sobre el editor también importa.
-  document.addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("dropping"); });
+  const isFileDrag = e => !dragId && [...(e.dataTransfer?.types || [])].includes("Files");
+  document.addEventListener("dragover", e => { if (!isFileDrag(e)) return; e.preventDefault(); document.body.classList.add("dropping"); });
   document.addEventListener("dragleave", e => { if (!e.relatedTarget) document.body.classList.remove("dropping"); });
   document.addEventListener("drop", e => {
+    if (!isFileDrag(e)) return;
     e.preventDefault(); document.body.classList.remove("dropping");
     const f = e.dataTransfer?.files?.[0]; if (f) importRules(f);
   });
@@ -423,7 +567,7 @@ async function init() {
     const fresh = await RT.load();
     if (JSON.stringify(fresh) === JSON.stringify(state)) return;
     state = fresh;
-    if (!current()) selectedId = state.rules[0]?.id || null;
+    if (!current()) { viewTrashId = null; selectedId = state.rules[0]?.id || null; }
     renderList();
     renderEditor();
   });

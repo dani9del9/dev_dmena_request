@@ -9,7 +9,9 @@ Extensión para Chrome y Firefox, al estilo de Requestly:
 - Reglas por **dominio**, por **URL con comodín** o por **regex**, filtradas por tipo de recurso.
 - **Colores por tipo** en el listado: verde = cabeceras, rojo pastel = redirección, amarillo pastel = parámetros. Si una regla hace varias cosas, aparece una etiqueta por cada una.
 - **Exportar e importar reglas en JSON**: botones en el popup y arriba en el editor. En el editor también puedes arrastrar el .json a la ventana. Al importar te pregunta si quieres reemplazar las reglas actuales o añadirlas.
-- Interruptor general, interruptor por regla y por línea, prioridad (▲▼) y duplicar.
+- **Ordenar arrastrando**: arrastra las reglas por el asa ⋮⋮. Las de arriba tienen más prioridad.
+- **Papelera**: al eliminar una regla, va a la papelera (debajo de la lista). Desde ahí puedes restaurarla (↺), borrarla definitivamente (✕) o vaciar la papelera entera. También puedes arrastrar una regla directamente sobre la papelera. Si haces clic en una regla de la papelera, se abre en el editor en modo solo lectura. Si al importar eliges "reemplazar", las reglas anteriores también van a la papelera.
+- Interruptor general, interruptor por regla y por línea, y duplicar.
 - **Aviso en el icono**: aparece un punto color tomato en la esquina cuando dmena_request ha modificado alguna petición en la pestaña (se quita al navegar a una página donde no actúa). Con la extensión apagada el icono se ve gris. En el popup ves el total y cuántas peticiones ha tocado cada regla.
 - Usa `declarativeNetRequest` (Manifest V3), así que no hace falta un script de fondo y las reglas siguen activas después de reiniciar el navegador.
 
@@ -19,14 +21,16 @@ Extensión para Chrome y Firefox, al estilo de Requestly:
 3. Pulsa **Cargar descomprimida** y elige la carpeta `dmena_request`.
 4. Fija el icono en la barra de herramientas.
 
-> Chrome muestra un aviso sobre `browser_specific_settings`. Es la configuración de Firefox y se puede ignorar.
+> `manifest.json` es el de Chrome. Firefox usa `manifest.firefox.json`, que va ya dentro de `dmena_request-firefox.zip`.
 
 ## Instalar en Firefox (versión 128 o superior)
+Firefox no admite `service_worker`, así que usa su propio manifest. Usa el zip **`dmena_request-firefox.zip`**.
+
 **Temporal** (se quita al cerrar Firefox):
 1. Abre `about:debugging#/runtime/this-firefox`.
-2. Pulsa **Cargar complemento temporal…** y elige el `manifest.json`.
+2. Pulsa **Cargar complemento temporal…** y elige `dmena_request-firefox.zip`.
 
-**Permanente**: comprime el contenido de la carpeta (sin la carpeta) en un .zip y fírmalo como "no listado" en https://addons.mozilla.org/developers/. Otra opción es usar Firefox Developer Edition con `xpinstall.signatures.required = false` en `about:config`.
+**Permanente**: firma `dmena_request-firefox.zip` como "no listado" en https://addons.mozilla.org/developers/. Otra opción es usar Firefox Developer Edition con `xpinstall.signatures.required = false` en `about:config`.
 
 **Importante en Firefox**: en Manifest V3, Firefox no concede automáticamente el permiso de acceso a los sitios. Si ves el aviso amarillo, pulsa **Conceder** (también puedes hacerlo en `about:addons` → dmena_request → Permisos → "Acceder a tus datos de todos los sitios web").
 

@@ -27,6 +27,13 @@
       <span class="lg headers">Cabeceras</span><span class="lg redirect">Redirección</span><span class="lg params">Parámetros</span>
     </div>
     <div id="ruleList" class="rule-list"></div>
+    <details id="trashBox" class="trash" open>
+      <summary>
+        <span class="trash-title">🗑 Papelera <span id="trashCount" class="trash-count">0</span></span>
+        <button type="button" id="emptyTrashBtn" class="danger small-btn" title="Borrar definitivamente todo lo de la papelera">Vaciar</button>
+      </summary>
+      <div id="trashList" class="trash-list"></div>
+    </details>
   </aside>
 
   <main>
@@ -41,11 +48,19 @@
     </div>
 
     <form id="editor" class="hidden" autocomplete="off">
+      <div id="trashBanner" class="trash-banner hidden">
+        <span>🗑 Esta regla está en la papelera <span id="trashBannerWhen" class="muted"></span>. No se aplica y no se puede editar.</span>
+        <div class="btns">
+          <button type="button" id="bannerRestore" class="primary">↺ Restaurar</button>
+          <button type="button" id="bannerDelete" class="danger">✕ Borrar definitivamente</button>
+        </div>
+      </div>
+      <fieldset id="editorFields" class="editor-fields">
       <div class="editor-head">
         <input type="text" id="ruleName" class="title-input" placeholder="Nombre de la regla">
         <label class="switch" title="Regla activa"><input type="checkbox" id="ruleEnabled"><span></span></label>
         <button type="button" id="dupRuleBtn" title="Duplicar">Duplicar</button>
-        <button type="button" id="delRuleBtn" class="danger" title="Eliminar">Eliminar</button>
+        <button type="button" id="delRuleBtn" class="danger" title="Mover a la papelera">🗑 Eliminar</button>
       </div>
       <div id="ruleErrors" class="errors hidden"></div>
 
@@ -147,6 +162,7 @@
         <summary>Ver reglas generadas (declarativeNetRequest)</summary>
         <pre id="dnrPreview"></pre>
       </details>
+      </fieldset>
     </form>
 
     <div class="statusbar"><span id="status" class="status"></span></div>

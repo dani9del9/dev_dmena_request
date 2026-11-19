@@ -57,7 +57,7 @@ const RT = (() => {
   }
 
   function defaultState() {
-    return { enabled: true, rules: [] };
+    return { enabled: true, rules: [], trash: [] };
   }
 
   async function load() {
@@ -65,6 +65,9 @@ const RT = (() => {
     const st = data[STORAGE_KEY];
     if (!st || !Array.isArray(st.rules)) return defaultState();
     st.rules = st.rules.map(normalizeRule);
+    st.trash = Array.isArray(st.trash)
+      ? st.trash.filter(t => t && t.rule).map(t => ({ ...t, rule: normalizeRule(t.rule) }))
+      : [];
     return st;
   }
 

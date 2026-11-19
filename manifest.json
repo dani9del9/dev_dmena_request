@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "dmena_request",
-  "version": "1.7.0",
+  "version": "1.8.1",
   "description": "Modifica cabeceras de petición/respuesta y añade o quita parámetros de URL mediante reglas (estilo Requestly).",
   "permissions": [
     "declarativeNetRequest",
@@ -13,11 +13,7 @@
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js",
-    "scripts": [
-      "rules.js",
-      "background.js"
-    ]
+    "service_worker": "background.js"
   },
   "action": {
     "default_title": "dmena_request",
@@ -38,11 +34,5 @@
     "32": "icons/orchid32.png",
     "48": "icons/orchid48.png",
     "128": "icons/orchid128.png"
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "reqtweak@dani9del9",
-      "strict_min_version": "128.0"
-    }
   }
 }
