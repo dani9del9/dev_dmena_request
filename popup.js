@@ -36,11 +36,17 @@ function render() {
   document.body.classList.toggle("global-off", !state.enabled);
   const list = $("list");
   list.innerHTML = "";
-  if (!state.rules.length) {
-    list.innerHTML = `<div class="empty">No hay reglas todavía.<br>Crea una con el editor.</div>`;
+  const visible = state.rules.filter(r => !r.hidden);
+  const nHidden = state.rules.length - visible.length;
+  $("hiddenNote").classList.toggle("hidden", !nHidden);
+  $("hiddenNote").textContent = `🙈 ${nHidden} regla${nHidden === 1 ? "" : "s"} oculta${nHidden === 1 ? "" : "s"} · ver en el editor`;
+  if (!visible.length) {
+    list.innerHTML = nHidden
+      ? `<div class="empty">Todas las reglas están ocultas.</div>`
+      : `<div class="empty">No hay reglas todavía.<br>Crea una con el editor.</div>`;
     return;
   }
-  for (const rule of state.rules) {
+  for (const rule of visible) {
     const row = document.createElement("div");
     const hits = tabStats.rules?.[rule.id] || 0;
     const kinds = RT.ruleKinds(rule);
@@ -112,10 +118,21 @@ async function init() {
   $("helpBtn").addEventListener("click", () => { chrome.tabs.create({ url: chrome.runtime.getURL("help.html") }); window.close(); });
 
   // Exportar / importar
+  $("hiddenNote").addEventListener("click", () => openEditor());
+  const doExport = includeHidden => {
+    $("exportAsk").classList.add("hidden");
+    const n = RT.downloadJson(state, { includeHidden });
+    setStatus({ ok: true, msg: `⬇ Exportadas ${n} regla(s)` });
+  };
   $("exportBtn").addEventListener("click", () => {
-    RT.downloadJson(state);
-    setStatus({ ok: true, msg: `⬇ Exportadas ${state.rules.length} regla(s)` });
+    const nHidden = state.rules.filter(r => r.hidden).length;
+    if (!nHidden) return doExport(true);
+    $("exportAskText").textContent = `Tienes ${nHidden} regla(s) oculta(s). ¿Quieres incluirlas en la exportación?`;
+    $("exportAsk").classList.remove("hidden");
   });
+  $("expWith").addEventListener("click", () => doExport(true));
+  $("expWithout").addEventListener("click", () => doExport(false));
+  $("expCancel").addEventListener("click", () => $("exportAsk").classList.add("hidden"));
   // En Firefox el popup se cierra al abrir el selector de ficheros: se importa desde el editor.
   const isFirefox = navigator.userAgent.includes("Firefox");
   $("importBtn").addEventListener("click", () => isFirefox ? openEditor({ import: "1" }) : $("importFile").click());

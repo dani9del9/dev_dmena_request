@@ -31,6 +31,10 @@
       <span class="lg headers">Cabeceras</span><span class="lg redirect">Redirección</span><span class="lg params">Parámetros</span><span class="lg inject">Inyección JS</span>
     </div>
     <div id="ruleList" class="rule-list"></div>
+    <details id="hiddenBox" class="hidden-box">
+      <summary><span class="trash-title">🙈 Ocultas <span id="hiddenCount" class="trash-count">0</span></span></summary>
+      <div id="hiddenList" class="hidden-list"></div>
+    </details>
     <details id="trashBox" class="trash" open>
       <summary>
         <span class="trash-title">🗑 Papelera <span id="trashCount" class="trash-count">0</span></span>
@@ -63,6 +67,7 @@
       <div class="editor-head">
         <input type="text" id="ruleName" class="title-input" placeholder="Nombre de la regla">
         <label class="switch" title="Regla activa"><input type="checkbox" id="ruleEnabled"><span></span></label>
+        <button type="button" id="hideRuleBtn" class="eye-btn" title="Ocultar en el popup"></button>
         <button type="button" id="dupRuleBtn" title="Duplicar">Duplicar</button>
         <button type="button" id="delRuleBtn" class="danger" title="Mover a la papelera">🗑 Eliminar</button>
       </div>

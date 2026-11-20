@@ -24,6 +24,7 @@
     <a href="#combinar" class="sub">Combinar acciones</a>
     <a href="#relacionadas">⇄ Reglas relacionadas</a>
     <a href="#orden">Orden y prioridad</a>
+    <a href="#ocultas">🙈 Reglas ocultas</a>
     <a href="#papelera">🗑 Papelera</a>
     <a href="#exportar">Exportar / importar</a>
     <a href="#popup">El popup y el icono</a>
@@ -239,6 +240,19 @@
       <p><b>Las de arriba tienen más prioridad.</b> Esto importa cuando dos reglas tocan la misma petición. Por ejemplo, si dos redirecciones cumplen el mismo patrón, gana la de más arriba.</p>
     </section>
 
+    <section id="ocultas">
+      <h2>🙈 Reglas ocultas</h2>
+      <p>Sirven para que el popup no se llene de reglas que no tocas casi nunca: reglas fijas que siempre están activas, reglas antiguas que guardas por si acaso…</p>
+      <ul>
+        <li>Pulsa el <b>ojo</b> que hay a la derecha de cada regla en la lista, o el botón <b>Visible / Oculta</b> junto al nombre de la regla en el editor.</li>
+        <li><b>Ocultar no apaga la regla.</b> Si está activa, sigue funcionando igual: solo deja de verse en el popup. Para que deje de aplicarse, apágala con su interruptor.</li>
+        <li>En el <b>popup</b> no aparecen. En su lugar sale un aviso, <i>"🙈 N reglas ocultas · ver en el editor"</i>, que te lleva al editor.</li>
+        <li>En el <b>editor</b> aparecen en la lista <b>🙈 Ocultas</b>, entre las reglas y la papelera, que puedes plegar y desplegar. Desde ahí puedes abrirlas, editarlas y activarlas como cualquier otra.</li>
+        <li>También puedes <b>arrastrar</b>: si sueltas una regla entre las ocultas, se oculta, y si la sueltas entre las visibles, vuelve a verse.</li>
+        <li>Al <b>exportar</b>, si tienes reglas ocultas, te pregunta si quieres incluirlas o exportar solo las visibles.</li>
+      </ul>
+    </section>
+
     <section id="papelera">
       <h2>🗑 Papelera</h2>
       <ul>
@@ -252,7 +266,7 @@
     <section id="exportar">
       <h2>Exportar e importar (JSON)</h2>
       <ul>
-        <li><b>⬇ Exportar JSON</b> (en el editor y en el popup) descarga todas tus reglas en <code>dmena_request-reglas-FECHA.json</code>, incluidos los grupos de relacionadas. La papelera no se exporta.</li>
+        <li><b>⬇ Exportar JSON</b> (en el editor y en el popup) descarga tus reglas en <code>dmena_request-reglas-FECHA.json</code>, incluidos los grupos de relacionadas. Si tienes reglas ocultas, te pregunta si quieres incluirlas. La papelera no se exporta.</li>
         <li><b>⬆ Importar JSON</b> carga un fichero exportado. Si ya tienes reglas, te pregunta:
           <ul>
             <li><b>Reemplazar</b>: las reglas actuales pasan a la papelera, así que no se pierden.</li>

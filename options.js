@@ -56,7 +56,9 @@ async function saveNow() {
 function renderList() {
   $("globalToggle").checked = state.enabled;
   const list = $("ruleList");
+  const hiddenList = $("hiddenList");
   list.innerHTML = "";
+  hiddenList.innerHTML = "";
   state.rules.forEach((rule, i) => {
     const hasErr = RT.validateRule(rule).length > 0 || lastFailed.includes(rule.id);
     const kinds = RT.ruleKinds(rule);
@@ -74,13 +76,39 @@ function renderList() {
       kindChips(kinds, RT.relatedOf(state, rule))
     );
     const grip = el("div", { className: "ri-grip", textContent: "⋮⋮", title: "Arrastra para cambiar el orden (arriba = más prioridad)" });
-    item.append(grip, sw, info);
+    const eye = el("button", { type: "button", className: "eye-btn" + (rule.hidden ? " is-hidden" : ""),
+      title: rule.hidden ? "Mostrar en el popup" : "Ocultar en el popup" });
+    eye.innerHTML = rule.hidden ? RT.EYE_OFF : RT.EYE_OPEN;
+    eye.addEventListener("click", e => { e.stopPropagation(); setHidden(rule, !rule.hidden); });
+    item.append(grip, sw, info, eye);
     item.addEventListener("click", () => select(rule.id));
     makeDraggable(item, rule.id);
-    list.append(item);
+    (rule.hidden ? hiddenList : list).append(item);
   });
-  if (!state.rules.length) list.append(el("p", { className: "muted small", textContent: "No hay reglas." }));
+  const nHidden = state.rules.filter(r => r.hidden).length;
+  if (state.rules.length === nHidden) list.append(el("p", { className: "muted small", textContent: nHidden ? "Todas las reglas están ocultas." : "No hay reglas." }));
+  $("hiddenCount").textContent = nHidden;
+  $("hiddenBox").classList.toggle("hidden", !nHidden);
+  updateHideBtn();
   renderTrash();
+}
+
+// ---------------- Ocultar ----------------
+function setHidden(rule, hidden) {
+  rule.hidden = !!hidden;
+  if (hidden) $("hiddenBox").open = true;
+  pendingMsg = hidden ? `🙈 «${rule.name}» oculta en el popup (sigue funcionando si está activa)` : `👁 «${rule.name}» vuelve a verse en el popup`;
+  renderList();
+  scheduleSave();
+}
+
+function updateHideBtn() {
+  const btn = $("hideRuleBtn");
+  const rule = current();
+  if (!btn || !rule) return;
+  btn.innerHTML = (rule.hidden ? RT.EYE_OFF : RT.EYE_OPEN) + `<span>${rule.hidden ? "Oculta" : "Visible"}</span>`;
+  btn.classList.toggle("is-hidden", !!rule.hidden);
+  btn.title = rule.hidden ? "Oculta en el popup. Pulsa para mostrarla" : "Visible en el popup. Pulsa para ocultarla";
 }
 
 // ---------------- Arrastrar para ordenar ----------------
@@ -117,6 +145,8 @@ function makeDraggable(item, id) {
     const after = item.classList.contains("drop-after");
     const from = state.rules.findIndex(r => r.id === dragId);
     const [moved] = state.rules.splice(from, 1);
+    // Soltar entre las ocultas la oculta; soltar entre las visibles la muestra.
+    moved.hidden = !!state.rules.find(r => r.id === id)?.hidden;
     let to = state.rules.findIndex(r => r.id === id);
     if (after) to++;
     state.rules.splice(to, 0, moved);
@@ -517,8 +547,13 @@ function applyPreset(selectEl, list, containerId, ops, datalistId) {
 }
 
 function exportRules() {
-  RT.downloadJson(state);
-  setStatus({ ok: true, count: state.rules.length, msg: `⬇ Exportadas ${state.rules.length} regla(s) a JSON` });
+  const nHidden = state.rules.filter(r => r.hidden).length;
+  let includeHidden = true;
+  if (nHidden) {
+    includeHidden = confirm(`Tienes ${nHidden} regla(s) oculta(s).\n\n¿Quieres incluirlas en la exportación?\n\nAceptar = incluir las ocultas\nCancelar = exportar solo las visibles`);
+  }
+  const n = RT.downloadJson(state, { includeHidden });
+  setStatus({ ok: true, count: n, msg: `⬇ Exportadas ${n} regla(s) a JSON${nHidden ? (includeHidden ? " (incluidas las ocultas)" : " (sin las ocultas)") : ""}` });
 }
 
 async function importRules(file) {
@@ -696,6 +731,7 @@ async function init() {
     scheduleSave();
   });
   $("delRuleBtn").addEventListener("click", () => moveToTrash(selectedId));
+  $("hideRuleBtn").addEventListener("click", () => { const r = current(); if (r) setHidden(r, !r.hidden); });
   const trashIdx = () => state.trash.findIndex(t => t.rule.id === viewTrashId);
   $("bannerRestore").addEventListener("click", () => { const i = trashIdx(); if (i >= 0) restoreFromTrash(i); });
   $("bannerDelete").addEventListener("click", () => { const i = trashIdx(); if (i >= 0) deleteFromTrash(i); });

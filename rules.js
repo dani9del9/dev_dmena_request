@@ -42,6 +42,7 @@ const RT = (() => {
       redirect: { enabled: false, mode: "url", url: "", regexSub: "" },
       inject: { enabled: false, when: "start", code: "", fileName: "" },
       relGroup: null, // reglas con el mismo grupo son excluyentes: solo una activa
+      hidden: false,  // oculta en el popup (sigue funcionando si está activa)
       ...partial
     };
   }
@@ -560,23 +561,30 @@ const RT = (() => {
     }
   }
 
+  // Iconos de ojo (visible / oculta)
+  const EYE_OPEN = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-7 0-11-7-11-7a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
   // ---------- Exportar / importar ----------
-  function exportJson(state) {
-    return JSON.stringify({ app: "dmena_request", version: 2, exportedAt: new Date().toISOString(), enabled: state.enabled, rules: state.rules }, null, 2);
+  function exportJson(state, { includeHidden = true } = {}) {
+    const rules = includeHidden ? state.rules : state.rules.filter(r => !r.hidden);
+    return JSON.stringify({ app: "dmena_request", version: 2, exportedAt: new Date().toISOString(), enabled: state.enabled, rules }, null, 2);
   }
 
   function exportFileName() {
     return `dmena_request-reglas-${new Date().toISOString().slice(0, 10)}.json`;
   }
 
-  function downloadJson(state) {
-    const blob = new Blob([exportJson(state)], { type: "application/json" });
+  // Descarga el JSON. Devuelve cuántas reglas se han exportado.
+  function downloadJson(state, opts = {}) {
+    const blob = new Blob([exportJson(state, opts)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = exportFileName();
     document.body.append(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    return opts.includeHidden === false ? state.rules.filter(r => !r.hidden).length : state.rules.length;
   }
 
   // Devuelve las reglas del JSON (normalizadas y con id nuevo). Lanza error si no es válido.
@@ -593,7 +601,7 @@ const RT = (() => {
   }
 
   return {
-    exportJson, downloadJson, parseImport, relatedOf, setEnabled, relate, unrelate, enforceGroups,
+    exportJson, downloadJson, parseImport, EYE_OPEN, EYE_OFF, relatedOf, setEnabled, relate, unrelate, enforceGroups,
     RESOURCE_TYPES, ALL_TYPES, newRule, normalizeRule, defaultState, load, save, apply, saveAndApply,
     validateRule, checkRegex, toDnrRules, toDnrGroups, hasHostPermission, requestHostPermission,
     summarize, describeMatch, uid, hasRedirect, hasInject, ruleKinds, userScriptsStatus, ensureUserScripts, compileState, urlFilterToRegex, STORAGE_KEY
