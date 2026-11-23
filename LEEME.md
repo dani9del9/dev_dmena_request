@@ -5,7 +5,7 @@ Extensión para Chrome y Firefox, al estilo de Requestly:
 - **Cabeceras de la petición**: poner o quitar (Authorization, Cookie, User-Agent, Origin, cabeceras propias…).
 - **Cabeceras de la respuesta**: poner, agregar o quitar (CORS abierto, quitar CSP o X-Frame-Options…).
 - **Redirecciones**: cambia una petición por otra URL. Por ejemplo, que `loquesea.com/libreria.js` se cargue desde `otracosa.com/libreria.lib.js`. Puede ser una URL fija o una sustitución con grupos de regex (`\1`, `\2`…). Avisa si el destino provocaría un bucle.
-- **Inyectar JavaScript** (reglas azules): ejecuta tu código en las páginas que cumplen el patrón, **antes** o **después** de que carguen. Se escribe en un editor con resaltado de sintaxis o se carga desde un fichero `.js`. En Chrome hay que activar «Permitir scripts de usuario» en los detalles de la extensión; en Firefox, conceder el permiso de scripts de usuario (Firefox 136+).
+- **Inyectar JavaScript** (reglas azules): ejecuta tu código en las páginas que cumplen el patrón, **antes** o **después** de que carguen. Se escribe en un editor con resaltado de sintaxis y botón **✨ Formatear** (Prettier, `Shift+Alt+F`), o se carga desde un fichero `.js`. En Chrome hay que activar «Permitir scripts de usuario» en los detalles de la extensión; en Firefox, conceder el permiso de scripts de usuario (Firefox 136+).
 - **Parámetros de URL**: añadir, reemplazar o quitar parámetros de la query.
 - Reglas por **dominio**, por **URL con comodín** o por **regex**, filtradas por tipo de recurso.
 - **Colores por tipo** en el listado: verde = cabeceras, rojo = redirección, azul = inyección JS, amarillo = parámetros. Si una regla hace varias cosas, aparece una etiqueta por cada una.
@@ -67,3 +67,6 @@ Cuenta toda petición de la pestaña que coincide con una regla activa: la pági
 - No funciona en páginas internas (`chrome://`, `about:`) ni en las tiendas de extensiones.
 - Para añadir parámetros se hace una redirección interna. En la página principal verás la URL cambiada. En las peticiones `fetch` o XHR a otros dominios, esa redirección puede afectar a CORS.
 - Las cabeceras que cambias **no aparecen** en la pestaña Network de DevTools, pero sí llegan al servidor.
+
+## Licencias de terceros
+- [Prettier](https://prettier.io) 3.8.1 (MIT), en `vendor/prettier/`, para el botón Formatear del editor de JS. Licencia en `vendor/prettier/LICENSE.txt`.

@@ -36,6 +36,43 @@ const CodeEditor = (() => {
     return out;
   }
 
+  // ---------- Formatear con Prettier (se carga solo la primera vez que hace falta) ----------
+  let prettierLoading = null;
+  function loadScript(src) {
+    return new Promise((ok, ko) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = ok;
+      s.onerror = () => ko(new Error("No se pudo cargar " + src));
+      document.head.append(s);
+    });
+  }
+  function loadPrettier() {
+    if (window.prettier && window.prettierPlugins?.babel) return Promise.resolve();
+    prettierLoading ||= (async () => {
+      await loadScript("vendor/prettier/standalone.js");
+      await loadScript("vendor/prettier/babel.js");
+      await loadScript("vendor/prettier/estree.js");
+    })();
+    return prettierLoading;
+  }
+  // Devuelve el código formateado. Si hay un error de sintaxis lanza un Error con mensaje en español.
+  async function format(code) {
+    await loadPrettier();
+    try {
+      return await window.prettier.format(code, {
+        parser: "babel",
+        plugins: [window.prettierPlugins.babel, window.prettierPlugins.estree],
+        printWidth: 100,
+        tabWidth: 2
+      });
+    } catch (e) {
+      const loc = e.loc?.start;
+      const msg = String(e.message || e).split("\n")[0].replace(/\s*\(\d+:\d+\)\s*$/, "");
+      throw new Error(loc ? `Error de sintaxis en la línea ${loc.line}, columna ${loc.column}: ${msg}` : msg);
+    }
+  }
+
   // Monta el editor dentro de "root". Devuelve { getValue, setValue, setDisabled, onChange }.
   function create(root, { placeholder = "" } = {}) {
     root.classList.add("code-editor");
@@ -99,9 +136,32 @@ const CodeEditor = (() => {
       }
     });
 
+    // Sustituye todo el texto conservando el historial de deshacer (Ctrl+Z).
+    const replaceAll = v => {
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand && document.execCommand("insertText", false, v);
+      if (!ok || ta.value !== v) { ta.value = v; ta.dispatchEvent(new Event("input")); }
+      ta.setSelectionRange(0, 0);
+      ta.scrollTop = 0;
+      ta.scrollLeft = 0;
+      syncScroll();
+    };
+
+    let formatHandler = null;
+    ta.addEventListener("keydown", e => {
+      // Shift+Alt+F, como en VS Code
+      if (e.key.toLowerCase() === "f" && e.shiftKey && e.altKey && formatHandler) {
+        e.preventDefault();
+        formatHandler();
+      }
+    });
+
     render();
     return {
       getValue: () => ta.value,
+      replaceAll,
+      onFormatShortcut: fn => { formatHandler = fn; },
       setValue: v => { ta.value = v || ""; ta.scrollTop = 0; render(); },
       setDisabled: d => { ta.readOnly = !!d; root.classList.toggle("ce-disabled", !!d); },
       onChange: fn => listeners.push(fn),
@@ -110,5 +170,5 @@ const CodeEditor = (() => {
     };
   }
 
-  return { create, highlight };
+  return { create, highlight, format };
 })();

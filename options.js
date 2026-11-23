@@ -613,6 +613,35 @@ async function init() {
     $("injectWhenHelp").innerHTML = WHEN_HELP[r.value];
     scheduleSave();
   }));
+  let fmtTimer = null;
+  const showFormatMsg = (ok, text) => {
+    const m = $("injectFormatMsg");
+    clearTimeout(fmtTimer);
+    m.textContent = text;
+    m.className = "format-msg " + (ok ? "ok" : "err");
+    if (ok) fmtTimer = setTimeout(() => m.classList.add("hidden"), 4000);
+  };
+  // Al seguir escribiendo desaparece el aviso de error.
+  codeEd.onChange(() => { if ($("injectFormatMsg").classList.contains("err")) $("injectFormatMsg").classList.add("hidden"); });
+  const formatCode = async () => {
+    const code = codeEd.getValue();
+    if (!code.trim()) return;
+    const btn = $("injectFormatBtn");
+    btn.disabled = true;
+    btn.textContent = "⏳ Formateando…";
+    try {
+      const out = await CodeEditor.format(code);
+      if (out !== code) codeEd.replaceAll(out);
+      showFormatMsg(true, out !== code ? "✨ Código formateado. Ctrl+Z para deshacer." : "✨ El código ya tenía buen formato.");
+    } catch (e) {
+      showFormatMsg(false, "No se puede formatear. " + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "✨ Formatear";
+    }
+  };
+  $("injectFormatBtn").addEventListener("click", formatCode);
+  codeEd.onFormatShortcut(formatCode);
   $("injectFileBtn").addEventListener("click", () => $("injectFile").click());
   $("injectFile").addEventListener("change", async e => {
     const f = e.target.files[0];

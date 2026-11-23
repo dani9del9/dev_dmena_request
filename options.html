@@ -192,11 +192,13 @@
             </div>
             <div class="btns">
               <span id="injectFileName" class="file-name"></span>
+              <button type="button" id="injectFormatBtn" title="Dar formato al código: saltos de línea, sangrías, espacios… (Shift+Alt+F)">✨ Formatear</button>
               <button type="button" id="injectFileBtn" title="Cargar el código desde un fichero .js">📂 Cargar fichero .js</button>
               <input type="file" id="injectFile" accept=".js,.mjs,text/javascript,application/javascript" class="hidden">
             </div>
           </div>
           <div id="injectCode"></div>
+          <div id="injectFormatMsg" class="format-msg hidden"></div>
           <p id="injectWhenHelp" class="help"></p>
         </div>
       </section>

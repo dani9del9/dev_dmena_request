@@ -152,6 +152,9 @@ pre { background: var(--panel2); border: 1px solid var(--border); border-radius:
 .ce-input::placeholder { color: #a9b4c4; }
 .ce-input::selection { background: rgba(79,143,216,.28); color: transparent; }
 .ce-disabled { opacity: .75; }
+.format-msg { font-size: 13.5px; padding: 7px 12px; border-radius: 8px; }
+.format-msg.ok { background: var(--k-inject-soft); color: #2563a8; }
+.format-msg.err { background: #fdeeee; border: 1px solid #f2b8b8; color: #b03030; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px; }
 .c-com { color: #8b949e; font-style: italic; }
 .c-str { color: #0a7d3e; }
 .c-num { color: #c2410c; }
